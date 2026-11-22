@@ -351,7 +351,7 @@ export async function handleNetlifyAccount(req) {
   }
 
   if (pathname === "/api/netlify/oauth/callback" && req.method === "GET") {
-    const origin = new URL(req.url).origin;
+    const origin = new URL(redirectUriFrom(req)).origin;
     const fail = (reason) => {
       const target = new URL("/", origin);
       target.searchParams.set("account", "error");
