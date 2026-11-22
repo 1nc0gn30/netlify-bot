@@ -6,6 +6,7 @@ import { buildPrompt } from "./prompt.js";
 import { runResearch } from "./research.js";
 import { getCliVersion } from "./cli-test.js";
 import { keywordAnalyze, analyzePrompt, parseAnalyzeReply } from "./tags.js";
+import { handleNetlifyAccount, accountContextText } from "./netlify-account.js";
 
 registerProvider(new AgyProvider());
 registerProvider(new EchoProvider());
@@ -83,7 +84,12 @@ async function prepareChat(req) {
     throw error;
   }
   const knowledge = await buildPromptKnowledge();
-  const systemPrompt = buildPrompt({ knowledge: knowledge.text, messages, meta: knowledge });
+  const systemPrompt = buildPrompt({
+    knowledge: knowledge.text,
+    messages,
+    meta: knowledge,
+    accountContext: accountContextText(sessionId),
+  });
   return { messages, provider, knowledge, systemPrompt };
 }
 
@@ -282,6 +288,10 @@ export async function handleRequest(req) {
     }
     if (pathname === "/api/conversations/analyze" && req.method === "POST") {
       return await handleAnalyze(req);
+    }
+    if (pathname.startsWith("/api/netlify")) {
+      const account = await handleNetlifyAccount(req);
+      if (account) return account;
     }
     if (pathname === "/api/research" && req.method === "POST") {
       const sessionId = getSessionId(req);

@@ -28,6 +28,7 @@
         <a href="https://netlify.ai" rel="noopener">netlify.ai</a>
       </nav>
       <div class="nav-actions">
+        <button type="button" class="nav-text" id="open-account">Account</button>
         <button type="button" class="nav-text" id="open-conversations">Conversations</button>
         <button type="button" class="nav-text" id="share-guide">Share guide</button>
         <a class="btn btn-primary" href="#composer">Ask Cove</a>
@@ -53,6 +54,7 @@
             <span><span class="k">Provider</span> <span id="status-provider">checking…</span></span>
             <span><span class="k">CLI</span> <span id="status-cli">checking…</span></span>
             <span><span class="k">Knowledge</span> <span id="status-knowledge">checking…</span></span>
+            <span><span class="k">Account</span> <span id="status-account">not linked</span></span>
           </p>
           <p class="hint" id="job-hint">Cove stays current from netlify.ai and official docs, then only writes verified claims to the shareable guide.</p>
         </div>
@@ -143,8 +145,20 @@
       <ol class="conversation-list" id="conversation-list"></ol>
     </aside>
 
+    <aside class="drawer" id="account-drawer" hidden aria-labelledby="account-title">
+      <div class="drawer-head">
+        <div>
+          <p class="eyebrow">Read-only Netlify access</p>
+          <h2 id="account-title">Account</h2>
+        </div>
+        <button type="button" class="btn btn-muted" id="close-account">Close</button>
+      </div>
+      <div id="account-panel" class="account-panel"></div>
+    </aside>
+
     <script src="./conversations.js" defer></script>
     <script src="./mascot.js" defer></script>
+    <script src="./account.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

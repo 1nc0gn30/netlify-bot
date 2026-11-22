@@ -1102,3 +1102,141 @@ h1 {
   0%, 100% { transform: translate3d(0, 0, 0); }
   50% { transform: translate3d(0, -3px, 0); }
 }
+
+
+/* Account drawer */
+.account-panel {
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 1rem;
+}
+
+.account-lead,
+.account-copy {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-weak);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.account-card {
+  background: var(--color-bg-panel-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  padding: 1rem 1.05rem 1.05rem;
+}
+
+.account-card h3 {
+  margin: 0.15rem 0 0;
+  font-size: 1.15rem;
+  letter-spacing: var(--tracking-tight);
+  font-weight: 600;
+}
+
+.account-card pre {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0.9rem;
+  background: var(--color-bg);
+  border-radius: 1rem;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.account-copy code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.token-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.token-form input {
+  flex: 1 1 12rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: var(--radius-pill);
+  padding: 0.55rem 0.9rem;
+  color: var(--color-text);
+  outline: none;
+}
+
+.account-error {
+  margin: 0;
+  color: #8a3a28;
+  font-size: 0.875rem;
+}
+
+.account-empty {
+  color: var(--color-text-weaker);
+  font-size: 0.875rem;
+}
+
+.site-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.site-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.75rem 0.9rem;
+  background: var(--color-bg-panel-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+}
+
+.site-meta {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--color-text-weaker);
+}
+
+.deploy-pill {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--color-text-weak);
+  white-space: nowrap;
+}
+
+.deploy-pill[data-state="ready"],
+.deploy-pill[data-state="current"] {
+  color: #0b7a6e;
+}
+
+.deploy-pill[data-state="error"],
+.deploy-pill[data-state="failed"] {
+  color: #8a3a28;
+}
+
+@media (max-width: 900px) {
+  #open-account {
+    /* keep visible with Conversations; Share guide already hides first */
+  }
+}

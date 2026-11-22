@@ -19,10 +19,17 @@ Rules:
 
 Knowledge pack follows. Prefer verified community claims when they include a test or source. Official pages win if there is a conflict.`;
 
-export function buildPrompt({ knowledge, messages, meta }) {
+export function buildPrompt({ knowledge, messages, meta, accountContext }) {
   const history = messages
     .map((m) => `${m.role === "assistant" ? "Assistant" : "User"}:\n${m.content}`)
     .join("\n\n");
+  const account = accountContext
+    ? `
+
+--- linked Netlify account (read-only) ---
+${accountContext}
+--- end linked account ---`
+    : "";
   return `${SYSTEM_PROMPT}
 
 --- knowledge pack ---
@@ -30,7 +37,7 @@ Last official fetch: ${meta.refreshedAt || "not yet fetched"}
 Sources loaded: ${meta.sourceCount || 0}
 
 ${knowledge || "(no cached knowledge yet)"}
---- end knowledge pack ---
+--- end knowledge pack ---${account}
 
 Conversation:
 

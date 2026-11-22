@@ -74,3 +74,21 @@ Nothing here creates a production site, GitHub repo, or production deploy. To go
 4. Optional: connect git and turn on a Preview Server in the Netlify UI for an authenticated collaborator preview. That still needs a hosted provider if you want the bot to answer off this laptop.
 
 Use Netlify CLI 27.20.0 or later (27.17.0 is the minimum for Netlify Server). Node.js 24 or later is required in production; this project was developed on Node 24+.
+
+## Linking a Netlify account
+
+Cove can answer questions about a visitor's sites and deploy status after they link a Netlify account. Access is read-only. Tokens are kept in memory for that Cove session only — never written to disk, the browser, logs, or the shareable guide. Cove never runs `netlify login --check` on the host, so a visitor cannot overwrite the machine's CLI login.
+
+Three ways to link:
+
+1. **CLI ticket** — the same flow as `netlify login --request`. Cove creates a ticket, the visitor approves a URL on app.netlify.com, and Cove exchanges it into the session.
+2. **Web OAuth** — register a Netlify OAuth application at [app.netlify.com → User settings → Applications](https://app.netlify.com/user/applications) and set:
+
+   - `NETLIFY_OAUTH_CLIENT_ID`
+   - `NETLIFY_OAUTH_CLIENT_SECRET`
+   - optional `NETLIFY_OAUTH_REDIRECT_URI` (defaults to `{origin}/api/netlify/oauth/callback`)
+
+   Add that redirect URI to the OAuth app. Also add a localhost callback if you run `netlify dev` locally, for example `http://localhost:8971/api/netlify/oauth/callback`.
+3. **Personal access token** — pasted in the Account drawer and stored only in the session.
+
+Do not set a host-wide `NETLIFY_AUTH_TOKEN` for visitors. The machine owner's CLI login is never reused for a web session.

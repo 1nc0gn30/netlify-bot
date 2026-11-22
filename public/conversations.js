@@ -181,6 +181,7 @@ function setTabs(which) {
 }
 
 function openDrawer() {
+  window.CoveAccount?.closeDrawer?.();
   const drawer = document.getElementById("conversations-drawer");
   const backdrop = document.getElementById("drawer-backdrop");
   if (drawer) {
@@ -205,11 +206,12 @@ function closeDrawer() {
     drawer.classList.remove("is-open");
     drawer.hidden = true;
   }
-  if (backdrop) {
+  const accountOpen = document.getElementById("account-drawer") && !document.getElementById("account-drawer").hidden;
+  if (backdrop && !accountOpen) {
     backdrop.classList.remove("is-open");
     backdrop.hidden = true;
   }
-  document.body.classList.remove("drawer-open");
+  if (!accountOpen) document.body.classList.remove("drawer-open");
   setTabs("chat");
 }
 
