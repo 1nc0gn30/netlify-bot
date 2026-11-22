@@ -327,7 +327,7 @@ h1 {
     radial-gradient(50% 50% at 80% 18%, rgba(1, 212, 229, 0.28), transparent 50%),
     linear-gradient(165deg, #f3c4a8 0%, #e8b7a8 40%, #7eb8b8 100%);
   border-radius: var(--radius-panel);
-  padding: 0.35rem 1.25rem 1.25rem;
+  padding: 0 1.25rem 1.25rem;
   min-height: 40rem;
   display: flex;
   flex-direction: column;
@@ -352,11 +352,27 @@ h1 {
   position: relative;
   z-index: 1;
   pointer-events: none;
-  width: 100%;
-  height: 17.75rem;
+  /* Break out of the panel padding so the art is flush with the well, not a padded rectangle */
+  width: calc(100% + 2.5rem);
+  height: 18.75rem;
+  margin: 0 -1.25rem -1.85rem;
   flex: 0 0 auto;
-  margin: 0 0 -1.35rem;
   align-self: stretch;
+  /* Feather only the lower edge into the grain; top/sides are clipped by the panel radius */
+  --mascot-mask: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 58%,
+    rgba(0, 0, 0, 0.82) 70%,
+    rgba(0, 0, 0, 0.35) 84%,
+    transparent 100%
+  );
+  -webkit-mask-image: var(--mascot-mask);
+  mask-image: var(--mascot-mask);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
 }
 
 .panel-art {
@@ -365,7 +381,7 @@ h1 {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 40%;
+  object-position: 50% 42%;
   transition: opacity 0.55s ease;
 }
 
@@ -685,7 +701,7 @@ h1 {
 
   .hero-panel {
     min-height: 0;
-    padding: 0.25rem 1rem 1.1rem;
+    padding: 0 1rem 1.1rem;
   }
 
   .hero-copy {
@@ -693,9 +709,17 @@ h1 {
   }
 
   .mascot {
-    width: 100%;
-    height: 14.5rem;
-    margin-bottom: -1.35rem;
+    width: calc(100% + 2rem);
+    height: 15.5rem;
+    margin: 0 -1rem -1.6rem;
+    --mascot-mask: linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 56%,
+      rgba(0, 0, 0, 0.8) 70%,
+      rgba(0, 0, 0, 0.3) 84%,
+      transparent 100%
+    );
   }
 
   .chat-card {
