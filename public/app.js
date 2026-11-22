@@ -79,6 +79,7 @@ function addBubble(role, content, { streaming = false } = {}) {
   const body = li.querySelector(".body");
   body.innerHTML = role === "assistant" ? renderMarkdown(content || "") : escapeHtml(content || "").replaceAll("\n", "<br>");
   if (streaming) body.classList.add("streaming");
+  if (role === "assistant" && String(content || "").startsWith("Hi, I’m Cove")) li.classList.add("welcome");
   els.transcript.appendChild(li);
   scrollTranscript();
   return { li, body };
@@ -222,6 +223,10 @@ async function sendQuestion(text) {
       scrollTranscript();
     }
     state.messages.push({ role: "assistant", content: reply });
+    if (window.CoveConversations) {
+      window.CoveConversations.saveMessages(state.messages);
+      window.CoveConversations.analyzeCurrent();
+    }
   } catch (err) {
     assistant.body.innerHTML = renderMarkdown(`I hit a snag: ${err.message}`);
   } finally {
@@ -289,8 +294,45 @@ els.share.addEventListener("click", async () => {
   }
 });
 
-addBubble(
-  "assistant",
-  "Hi, I’m Cove — a fan-made community guide for the Netlify CLI and platform. I’m not an official Netlify product. Ask me about deploys, functions, Netlify Server, or how to share a dev link before you go live.",
-);
+const WELCOME = "Hi, I’m Cove — a fan-made community guide for the Netlify CLI and platform. I’m not an official Netlify product. Ask me about deploys, functions, Netlify Server, or how to share a dev link before you go live.";
+
+function isWelcome(message) {
+  return message?.role === "assistant" && String(message.content || "").startsWith("Hi, I’m Cove");
+}
+
+function startNewConversation() {
+  state.messages = [];
+  document.querySelector(".chat-card")?.classList.remove("is-chatting");
+  els.transcript.innerHTML = "";
+  addBubble("assistant", WELCOME);
+  window.CoveConversations?.create([]);
+}
+
+function loadConversation(item) {
+  const messages = Array.isArray(item?.messages) ? item.messages : [];
+  state.messages = messages.filter((m) => !isWelcome(m));
+  els.transcript.innerHTML = "";
+  const card = document.querySelector(".chat-card");
+  const hasUser = state.messages.some((m) => m.role === "user");
+  card?.classList.toggle("is-chatting", hasUser);
+  if (!messages.length) {
+    addBubble("assistant", WELCOME);
+    return;
+  }
+  for (const message of messages) addBubble(message.role, message.content);
+  scrollTranscript();
+}
+
+if (window.CoveConversations) {
+  window.CoveConversations.bind({
+    api,
+    onNew: startNewConversation,
+    onLoad: loadConversation,
+  });
+  const current = window.CoveConversations.current();
+  if (current?.messages?.some((m) => m.role === "user")) loadConversation(current);
+  else addBubble("assistant", WELCOME);
+} else {
+  addBubble("assistant", WELCOME);
+}
 loadStatus();

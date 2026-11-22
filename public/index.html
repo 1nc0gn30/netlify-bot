@@ -28,6 +28,7 @@
         <a href="https://netlify.ai" rel="noopener">netlify.ai</a>
       </nav>
       <div class="nav-actions">
+        <button type="button" class="nav-text" id="open-conversations">Conversations</button>
         <button type="button" class="nav-text" id="share-guide">Share guide</button>
         <a class="btn btn-primary" href="#composer">Ask Cove</a>
       </div>
@@ -68,7 +69,13 @@
                 <p class="eyebrow">Ask Cove</p>
                 <h2>CLI, functions, Server, previews</h2>
               </div>
-              <p class="live-note" id="live-note">Answers run on the machine hosting this session.</p>
+              <div class="chat-head-actions">
+                <div class="chat-tabs" role="tablist" aria-label="Chat views">
+                  <button type="button" class="chat-tab is-active" role="tab" id="tab-chat" aria-selected="true">Chat</button>
+                  <button type="button" class="chat-tab" role="tab" id="tab-conversations" aria-selected="false">Conversations</button>
+                </div>
+                <p class="live-note" id="live-note">Answers run on the machine hosting this session.</p>
+              </div>
             </div>
 
             <div class="chips" id="chips">
@@ -113,6 +120,28 @@
       </div>
     </footer>
 
+    <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+    <aside class="drawer" id="conversations-drawer" hidden aria-labelledby="conversations-title">
+      <div class="drawer-head">
+        <div>
+          <p class="eyebrow">Saved locally in this browser</p>
+          <h2 id="conversations-title">Conversations</h2>
+        </div>
+        <button type="button" class="btn btn-muted" id="close-conversations">Close</button>
+      </div>
+      <div class="drawer-tools">
+        <label class="sr-only" for="conversation-search">Search conversations</label>
+        <input type="search" id="conversation-search" placeholder="Search titles, tags, or questions" />
+        <button type="button" class="btn btn-primary" id="new-conversation">New</button>
+        <button type="button" class="btn btn-muted" id="export-conversation">Export</button>
+        <button type="button" class="btn btn-muted" id="export-all-conversations">Export all</button>
+      </div>
+      <div class="tag-filters" id="tag-filters" aria-label="Filter by tag"></div>
+      <p class="conversation-empty" id="conversation-empty">No conversations yet. Ask Cove something and it will show up here, tagged automatically.</p>
+      <ol class="conversation-list" id="conversation-list"></ol>
+    </aside>
+
+    <script src="./conversations.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

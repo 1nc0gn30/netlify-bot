@@ -5,6 +5,7 @@ import { EchoProvider, getProvider, listProviders, registerProvider } from "./pr
 import { buildPrompt } from "./prompt.js";
 import { runResearch } from "./research.js";
 import { getCliVersion } from "./cli-test.js";
+import { keywordAnalyze, analyzePrompt, parseAnalyzeReply } from "./tags.js";
 
 registerProvider(new AgyProvider());
 registerProvider(new EchoProvider());
@@ -199,6 +200,56 @@ async function statusPayload() {
   };
 }
 
+
+const analyzeBuckets = new Map();
+
+function assertAnalyzeLimit(sessionId) {
+  const now = Date.now();
+  let entry = analyzeBuckets.get(sessionId);
+  if (!entry || now - entry.start > 10 * 60 * 1000) entry = { start: now, count: 0 };
+  if (entry.count >= 20) {
+    const err = new Error("analyze-limit");
+    err.status = 429;
+    throw err;
+  }
+  entry.count += 1;
+  analyzeBuckets.set(sessionId, entry);
+}
+
+async function handleAnalyze(req) {
+  const sessionId = getSessionId(req);
+  const payload = await req.json().catch(() => null);
+  const messages = Array.isArray(payload?.messages) ? payload.messages.slice(-12) : [];
+  const fallback = keywordAnalyze(messages);
+  try {
+    assertAnalyzeLimit(sessionId);
+  } catch {
+    return json({ ok: true, ...fallback, source: "keywords" });
+  }
+  const provider = getProvider();
+  const ready = await provider.available();
+  if (!ready.ok) return json({ ok: true, ...fallback });
+  const { systemPrompt, userContent } = analyzePrompt(messages);
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 25_000);
+  try {
+    let reply = "";
+    for await (const chunk of provider.stream({
+      messages: [{ role: "user", content: userContent }],
+      systemPrompt,
+      signal: abort.signal,
+      timeoutMs: 25_000,
+    })) {
+      reply += chunk;
+    }
+    return json({ ok: true, ...parseAnalyzeReply(reply, messages) });
+  } catch {
+    return json({ ok: true, ...fallback });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function handleRequest(req) {
   await boot();
   const url = new URL(req.url);
@@ -228,6 +279,9 @@ export async function handleRequest(req) {
       assertRateLimit(sessionId);
       const result = await refreshOfficialSources({ reason: "manual" });
       return json({ ok: true, ...result });
+    }
+    if (pathname === "/api/conversations/analyze" && req.method === "POST") {
+      return await handleAnalyze(req);
     }
     if (pathname === "/api/research" && req.method === "POST") {
       const sessionId = getSessionId(req);
