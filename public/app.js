@@ -48,6 +48,8 @@ function renderMarkdown(raw) {
     return `\u0000FENCE${i}\u0000`;
   });
   text = escapeHtml(text);
+  text = text.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+  text = text.replace(/^## (.+)$/gm, "<h3>$1</h3>");
   text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
   text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   text = text.replace(/(^|\n)- (.+)/g, "$1<li>$2</li>");
@@ -56,12 +58,18 @@ function renderMarkdown(raw) {
   text = text
     .split(/\n{2,}/)
     .map((block) => {
-      if (block.startsWith("<ul>") || block.startsWith("<pre>") || block.includes("\u0000FENCE")) return block;
+      if (block.startsWith("<ul>") || block.startsWith("<pre>") || block.startsWith("<h3>") || block.includes("\u0000FENCE")) return block;
       return `<p>${block.replaceAll("\n", "<br>")}</p>`;
     })
     .join("");
   text = text.replace(/\u0000FENCE(\d+)\u0000/g, (_, i) => fences[Number(i)]);
   return text;
+}
+
+function scrollTranscript() {
+  requestAnimationFrame(() => {
+    els.transcript.scrollTop = els.transcript.scrollHeight;
+  });
 }
 
 function addBubble(role, content, { streaming = false } = {}) {
@@ -72,7 +80,7 @@ function addBubble(role, content, { streaming = false } = {}) {
   body.innerHTML = role === "assistant" ? renderMarkdown(content || "") : escapeHtml(content || "").replaceAll("\n", "<br>");
   if (streaming) body.classList.add("streaming");
   els.transcript.appendChild(li);
-  els.transcript.scrollTop = els.transcript.scrollHeight;
+  scrollTranscript();
   return { li, body };
 }
 
@@ -174,6 +182,7 @@ async function sendQuestion(text) {
   const content = String(text || "").trim();
   if (!content || state.busy) return;
   els.prompt.value = "";
+  document.querySelector(".chat-card")?.classList.add("is-chatting");
   state.messages.push({ role: "user", content });
   addBubble("user", content);
   const assistant = addBubble("assistant", "Thinking…", { streaming: true });
@@ -193,7 +202,7 @@ async function sendQuestion(text) {
           }
           reply = partial;
           assistant.body.innerHTML = renderMarkdown(reply);
-          els.transcript.scrollTop = els.transcript.scrollHeight;
+          scrollTranscript();
         });
         if (streamed) reply = streamed;
       }
@@ -210,6 +219,7 @@ async function sendQuestion(text) {
       if (!reply.trim()) throw new Error(data.error || "The guide returned an empty answer.");
       setState("talking");
       assistant.body.innerHTML = renderMarkdown(reply);
+      scrollTranscript();
     }
     state.messages.push({ role: "assistant", content: reply });
   } catch (err) {
@@ -217,6 +227,7 @@ async function sendQuestion(text) {
   } finally {
     setBusy(false);
     setState("idle");
+    scrollTranscript();
   }
 }
 
