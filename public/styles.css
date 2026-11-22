@@ -765,9 +765,20 @@ h1 {
 
 @media (prefers-reduced-motion: reduce) {
   .typing::after,
-  .panel-art {
-    animation: none;
-    transition: none;
+  .panel-art,
+  .mascot,
+  .mascot[data-mood="idle"] .panel-art.mascot-idle,
+  .mascot[data-mood="listening"] .panel-art.mascot-idle,
+  .mascot[data-mood="talking"] .panel-art,
+  .mascot-fx,
+  .mascot-shadow {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .mascot-fx {
+    opacity: 0;
   }
 }
 
@@ -1003,4 +1014,91 @@ h1 {
   .chat-head-actions {
     align-items: flex-start;
   }
+}
+
+
+/* Alive mascot — conversation-aware motion, reduced-motion aware */
+.mascot {
+  --mx: 0px;
+  --my: 0px;
+  transform: translate3d(var(--mx), var(--my), 0);
+  transform-origin: 50% 45%;
+}
+
+.mascot-shadow {
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 14%;
+  height: 22%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(19, 22, 25, 0.28), transparent 70%);
+  filter: blur(10px);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.58;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.mascot[data-mood="thinking"] .mascot-shadow,
+.mascot[data-mood="talking"] .mascot-shadow {
+  opacity: 0.32;
+  transform: scaleX(1.05);
+}
+
+.mascot-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  mix-blend-mode: screen;
+}
+
+.mascot[data-mood="thinking"] .mascot-fx,
+.mascot[data-mood="talking"] .mascot-fx,
+.mascot[data-mood="code"] .mascot-fx {
+  opacity: 1;
+}
+
+.mascot[data-mood="idle"] .panel-art.mascot-idle,
+.mascot[data-mood="listening"] .panel-art.mascot-idle {
+  animation: mascot-breathe 6.5s ease-in-out infinite;
+}
+
+.mascot[data-mood="listening"] .panel-art.mascot-idle {
+  filter: saturate(1.07) brightness(1.04);
+}
+
+.mascot[data-mood="thinking"] .panel-art.mascot-thinking {
+  filter: drop-shadow(0 0 26px rgba(1, 212, 229, 0.38));
+}
+
+.mascot[data-mood="talking"] .panel-art.mascot-thinking {
+  animation: mascot-speak 1.85s ease-in-out infinite;
+  filter: drop-shadow(0 0 16px rgba(1, 212, 229, 0.28));
+}
+
+.mascot[data-mood="success"] .panel-art.mascot-idle {
+  filter: drop-shadow(0 0 22px rgba(1, 212, 229, 0.42));
+}
+
+.mascot[data-mood="error"] .panel-art.mascot-idle {
+  filter: grayscale(0.22) brightness(0.96);
+}
+
+.mascot[data-mood="code"] .panel-art.mascot-thinking {
+  filter: contrast(1.05) drop-shadow(0 0 14px rgba(19, 22, 25, 0.2));
+}
+
+@keyframes mascot-breathe {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -5px, 0) scale(1.012); }
+}
+
+@keyframes mascot-speak {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -3px, 0); }
 }

@@ -58,9 +58,11 @@
         </div>
 
         <div class="hero-panel">
-          <div class="mascot" id="buoy" data-state="idle" role="img" aria-label="Cove mark: a cream stone with a cyan inlet">
+          <div class="mascot" id="buoy" data-state="idle" data-mood="idle" role="img" aria-label="Cove mark: a cream stone with a cyan inlet">
             <img class="panel-art mascot-idle" src="./assets/cove-stone-idle.jpg" width="1024" height="1024" alt="" />
             <img class="panel-art mascot-thinking" src="./assets/cove-stone-thinking.jpg" width="1024" height="1024" alt="" />
+            <canvas class="mascot-fx" id="mascot-fx" aria-hidden="true"></canvas>
+            <span class="mascot-shadow" aria-hidden="true"></span>
           </div>
 
           <section class="chat-card" aria-label="Chat with Cove">
@@ -142,6 +144,7 @@
     </aside>
 
     <script src="./conversations.js" defer></script>
+    <script src="./mascot.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

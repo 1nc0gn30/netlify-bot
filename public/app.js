@@ -29,7 +29,12 @@ const els = {
 };
 
 function setState(mode) {
+  if (window.CoveMascot) {
+    window.CoveMascot.setMood(mode);
+    return;
+  }
   els.buoy.dataset.state = mode;
+  els.buoy.dataset.mood = mode;
 }
 
 function escapeHtml(text) {
@@ -89,6 +94,7 @@ function setBusy(busy) {
   state.busy = busy;
   els.send.disabled = busy;
   els.prompt.disabled = busy;
+  document.body.dataset.coveBusy = busy ? "true" : "false";
 }
 
 async function api(path, options = {}) {
@@ -229,9 +235,14 @@ async function sendQuestion(text) {
     }
   } catch (err) {
     assistant.body.innerHTML = renderMarkdown(`I hit a snag: ${err.message}`);
+    setState("error");
   } finally {
     setBusy(false);
-    setState("idle");
+    if (reply.trim()) {
+      setState(/```/.test(reply) ? "code" : "success");
+    } else if (els.buoy?.dataset.mood !== "error") {
+      setState("idle");
+    }
     scrollTranscript();
   }
 }
