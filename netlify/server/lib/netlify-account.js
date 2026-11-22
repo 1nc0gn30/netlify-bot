@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile, chmod } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { getSessionId, json, text } from "./guards.js";
 import { projectRoot } from "./paths.js";
 
@@ -16,10 +17,26 @@ const STORE_PATH = path.join(projectRoot, "logs/cove-account-sessions.json");
 const API = "https://api.netlify.com/api/v1";
 const TOKEN_URL = "https://api.netlify.com/oauth/token";
 const AUTHORIZE = "https://app.netlify.com/authorize";
-// Public client id shipped with the official Netlify CLI (`netlify login --request`).
-const CLI_CLIENT_ID =
-  process.env.NETLIFY_CLI_OAUTH_CLIENT_ID ||
-  "d6f37de6614df7ae58664cfca524744d73807a377f5ee71f1a254f78412e3750";
+
+async function cliClientId() {
+  if (process.env.NETLIFY_CLI_OAUTH_CLIENT_ID) return process.env.NETLIFY_CLI_OAUTH_CLIENT_ID;
+  const candidates = [
+    path.join(projectRoot, "node_modules/netlify-cli/dist/commands/base-command.js"),
+    "/usr/local/lib/node_modules/netlify-cli/dist/commands/base-command.js",
+    "/usr/lib/node_modules/netlify-cli/dist/commands/base-command.js",
+  ];
+  for (const candidate of candidates) {
+    try {
+      const mod = await import(pathToFileURL(candidate).href);
+      if (mod.CLIENT_ID) return mod.CLIENT_ID;
+    } catch {
+      /* try the next install path */
+    }
+  }
+  const err = new Error("Install the Netlify CLI or set NETLIFY_CLI_OAUTH_CLIENT_ID to use the login-ticket flow.");
+  err.status = 501;
+  throw err;
+}
 
 const SITE_TTL_MS = 2 * 60 * 1000;
 const TICKET_TTL_MS = 10 * 60 * 1000;
@@ -245,7 +262,8 @@ export async function handleNetlifyAccount(req) {
 
   if (pathname === "/api/netlify/cli/request" && req.method === "POST") {
     if (sessionId === "anon") return json({ error: "A Cove session is required." }, 400);
-    const ticket = await netlifyFetch(`/oauth/tickets?client_id=${encodeURIComponent(CLI_CLIENT_ID)}`, {
+    const clientId = await cliClientId();
+    const ticket = await netlifyFetch(`/oauth/tickets?client_id=${encodeURIComponent(clientId)}`, {
       method: "POST",
       body: { message: "Cove, a fan-made community Netlify guide, is requesting read-only access to your sites and deploy status." },
     });
