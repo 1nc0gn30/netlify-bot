@@ -1,7 +1,7 @@
 import { assertInput, assertRateLimit, bufferResponse, getSessionId, json, LIMITS, text, withConcurrency } from "./guards.js";
 import { buildPromptKnowledge, ensureFresh, knowledgeStatus, readCommunityGuide, refreshOfficialSources } from "./knowledge.js";
 import { AgyProvider } from "./agy.js";
-import { EchoProvider, getProvider, listProviders, registerProvider } from "./providers.js";
+import { EchoProvider, getProvider, listProviders, registerProvider, providerCatalog } from "./providers.js";
 import { buildPrompt } from "./prompt.js";
 import { runResearch } from "./research.js";
 import { getCliVersion } from "./cli-test.js";
@@ -67,13 +67,21 @@ function sse(stream) {
   });
 }
 
+function takeApiKey(payload) {
+  const key = typeof payload?.apiKey === "string" ? payload.apiKey.trim() : "";
+  if (!key) return "";
+  if (key.length < 8 || key.length > 4096) return "";
+  return key;
+}
+
 async function prepareChat(req) {
   const sessionId = getSessionId(req);
   assertRateLimit(sessionId);
   const payload = await req.json().catch(() => null);
   const messages = assertInput(payload);
-  const provider = getProvider();
-  const ready = await provider.available();
+  const provider = getProvider(payload?.provider);
+  const apiKey = takeApiKey(payload);
+  const ready = await provider.available({ apiKey });
   if (!ready.ok) {
     const error = new Error(ready.reason || "The model provider is not available.");
     error.status = 503;
@@ -90,15 +98,17 @@ async function prepareChat(req) {
     meta: knowledge,
     accountContext: accountContextText(sessionId),
   });
-  return { messages, provider, knowledge, systemPrompt };
+  return { messages, provider, knowledge, systemPrompt, apiKey };
 }
 
-async function collectReply({ messages, systemPrompt, signal }) {
+async function collectReply({ messages, systemPrompt, signal, provider, apiKey }) {
   let reply = "";
+  const active = provider || getProvider();
   await withConcurrency(async () => {
-    for await (const chunk of getProvider().stream({
+    for await (const chunk of active.stream({
       messages,
       systemPrompt,
+      apiKey,
       signal,
       timeoutMs: LIMITS.chatTimeoutMs,
     })) {
@@ -127,6 +137,7 @@ async function handleChatStream(req) {
           for await (const chunk of prepared.provider.stream({
             messages: prepared.messages,
             systemPrompt: prepared.systemPrompt,
+            apiKey: prepared.apiKey,
             signal: abort.signal,
             timeoutMs: LIMITS.chatTimeoutMs,
           })) {
@@ -162,6 +173,8 @@ async function handleChatJson(req) {
       messages: prepared.messages,
       systemPrompt: prepared.systemPrompt,
       signal: abort.signal,
+      provider: prepared.provider,
+      apiKey: prepared.apiKey,
     });
     if (!String(reply).trim()) {
       const error = new Error("The guide returned an empty answer.");
@@ -275,6 +288,9 @@ export async function handleRequest(req) {
     }
     if (pathname === "/api/status" && req.method === "GET") {
       return json(await statusPayload());
+    }
+    if (pathname === "/api/providers" && req.method === "GET") {
+      return json(await providerCatalog());
     }
     if (pathname === "/api/chat" && req.method === "POST") {
       if (wantsStream(req)) return await handleChatStream(req);

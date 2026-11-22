@@ -125,9 +125,13 @@ function formatTime(iso) {
 async function loadStatus() {
   try {
     const status = await api("/api/status");
-    els.statusProvider.textContent = status.provider.available
-      ? status.provider.label
-      : status.provider.reason || "unavailable";
+    if (window.CoveProviders?.currentId) {
+      window.CoveProviders.syncStatus?.();
+    } else {
+      els.statusProvider.textContent = status.provider.available
+        ? status.provider.label
+        : status.provider.reason || "unavailable";
+    }
     els.statusCli.textContent = status.cli.raw || status.cli.version || "unknown";
     const k = status.knowledge;
     els.statusKnowledge.textContent = k.refreshedAt
@@ -174,6 +178,12 @@ async function readSseReply(res, onToken) {
 }
 
 async function chatRequest(messages, { stream }) {
+  const payload = { messages };
+  if (window.CoveProviders) {
+    payload.provider = window.CoveProviders.currentId();
+    const apiKey = window.CoveProviders.keyForCurrent();
+    if (apiKey) payload.apiKey = apiKey;
+  }
   return fetch(stream ? "/api/chat" : "/api/chat?stream=0", {
     method: "POST",
     headers: {
@@ -181,7 +191,7 @@ async function chatRequest(messages, { stream }) {
       "x-cove-session": sessionId,
       accept: stream ? "text/event-stream" : "application/json",
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify(payload),
   });
 }
 

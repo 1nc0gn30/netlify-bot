@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
-import { ProviderError } from "./providers.js";
+import { ProviderError } from "./provider-error.js";
 import { LIMITS } from "./guards.js";
 
 function resolveAgy() {

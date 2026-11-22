@@ -10,3 +10,6 @@ knowledge/cache/
 coverage/
 shots/
 .netlify
+
+# Large PNG fallbacks of the stone stills; the app serves WebP.
+public/assets/cove-stone-*.png

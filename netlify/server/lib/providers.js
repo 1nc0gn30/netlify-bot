@@ -1,22 +1,20 @@
 /**
  * Pluggable model providers.
  *
- * The default provider is AgyProvider, which calls the local `agy` CLI on this
- * machine. Swap it by setting COVE_PROVIDER=echo (for tests) or by adding a
- * new class and registering it in `providers`. A later hosted provider can
- * talk to a remote API without changing the chat or research routes.
+ * Local CLIs are discovered on the host. Cloud providers use a key the
+ * browser sends per request (or an OpenRouter PKCE key stored in the tab).
+ * Never log API keys.
  */
-export class ProviderError extends Error {
-  constructor(message, status = 503) {
-    super(message);
-    this.status = status;
-  }
-}
+export { ProviderError } from "./provider-error.js";
+import { AgyProvider } from "./agy.js";
+import { detectLocalClis, createLocalCliProvider } from "./local-clis.js";
+import { CLOUD_CATALOG, createCloudProvider } from "./cloud-providers.js";
 
 export class EchoProvider {
   constructor() {
     this.id = "echo";
     this.label = "Echo (test only)";
+    this.kind = "test";
   }
 
   async available() {
@@ -38,15 +36,43 @@ export function registerProvider(provider) {
   registry.set(provider.id, provider);
 }
 
-export function getProvider() {
-  const id = process.env.COVE_PROVIDER || "agy";
-  const provider = registry.get(id) || registry.get("agy");
-  if (!provider) {
-    throw new ProviderError("No model provider is registered.", 500);
-  }
-  return provider;
+export function getProvider(id) {
+  const wanted = id || process.env.COVE_PROVIDER || "agy";
+  return registry.get(wanted) || registry.get("agy");
 }
 
 export function listProviders() {
-  return [...registry.values()].map((p) => ({ id: p.id, label: p.label }));
+  return [...registry.values()].map((p) => ({ id: p.id, label: p.label, kind: p.kind || "unknown" }));
+}
+
+registerProvider(new AgyProvider());
+registerProvider(new EchoProvider());
+for (const entry of CLOUD_CATALOG) registerProvider(createCloudProvider(entry));
+for (const id of ["agy", "hermes", "muse", "grok"]) {
+  const local = createLocalCliProvider(id);
+  if (local && id !== "agy") registerProvider(local);
+}
+
+export async function providerCatalog() {
+  const local = await detectLocalClis();
+  return {
+    ok: true,
+    defaultId: process.env.COVE_PROVIDER || "agy",
+    local,
+    cloud: CLOUD_CATALOG.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      auth: entry.auth,
+      authLabel: entry.authLabel,
+      docs: entry.docs,
+      keyUrl: entry.keyUrl || null,
+      model: entry.model,
+      kind: "cloud",
+    })),
+    skipped: [
+      { id: "claude", reason: "The claude binaries on this host are an installer harness; official Claude Code is not installed, so it is not offered." },
+      { id: "codex", reason: "The codex binaries on this host are a gatekeeper/harness wrapper, not a confirmed runnable Codex CLI, so it is not offered." },
+      { id: "grok-bot", reason: "grok-bot is a desktop app, not a non-interactive CLI." },
+    ],
+  };
 }

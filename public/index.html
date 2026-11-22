@@ -61,8 +61,8 @@
 
         <div class="hero-panel">
           <div class="mascot" id="buoy" data-state="idle" data-mood="idle" role="img" aria-label="Cove mark: a cream stone with a cyan inlet">
-            <img class="panel-art mascot-idle" src="./assets/cove-stone-idle.jpg" width="1024" height="1024" alt="" />
-            <img class="panel-art mascot-thinking" src="./assets/cove-stone-thinking.jpg" width="1024" height="1024" alt="" />
+            <img class="panel-art mascot-idle" src="./assets/cove-stone-idle.webp" width="1024" height="1024" alt="" />
+            <img class="panel-art mascot-thinking" src="./assets/cove-stone-thinking.webp" width="1024" height="1024" alt="" />
             <canvas class="mascot-fx" id="mascot-fx" aria-hidden="true"></canvas>
             <span class="mascot-shadow" aria-hidden="true"></span>
           </div>
@@ -148,17 +148,23 @@
     <aside class="drawer" id="account-drawer" hidden aria-labelledby="account-title">
       <div class="drawer-head">
         <div>
-          <p class="eyebrow">Read-only Netlify access</p>
+          <p class="eyebrow">Account and providers</p>
           <h2 id="account-title">Account</h2>
         </div>
         <button type="button" class="btn btn-muted" id="close-account">Close</button>
       </div>
+      <div class="chat-tabs drawer-tabs" role="tablist" aria-label="Account sections">
+        <button type="button" class="chat-tab is-active" role="tab" id="account-tab-netlify" aria-selected="true">Netlify</button>
+        <button type="button" class="chat-tab" role="tab" id="account-tab-providers" aria-selected="false">AI providers</button>
+      </div>
       <div id="account-panel" class="account-panel"></div>
+      <div id="providers-panel" class="account-panel" hidden></div>
     </aside>
 
     <script src="./conversations.js" defer></script>
     <script src="./mascot.js" defer></script>
     <script src="./account.js" defer></script>
+    <script src="./providers.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

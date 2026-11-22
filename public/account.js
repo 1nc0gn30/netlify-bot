@@ -280,6 +280,23 @@ netlify login --request "Cove read-only site access" --json</code></pre>
     if (e.key === "Escape") closeDrawer();
   });
 
+  function showAccountTab(name) {
+    const netlify = document.getElementById("account-panel");
+    const providers = document.getElementById("providers-panel");
+    const netlifyTab = document.getElementById("account-tab-netlify");
+    const providersTab = document.getElementById("account-tab-providers");
+    const isProviders = name === "providers";
+    if (netlify) netlify.hidden = isProviders;
+    if (providers) providers.hidden = !isProviders;
+    netlifyTab?.classList.toggle("is-active", !isProviders);
+    providersTab?.classList.toggle("is-active", isProviders);
+    netlifyTab?.setAttribute("aria-selected", String(!isProviders));
+    providersTab?.setAttribute("aria-selected", String(isProviders));
+  }
+
+  document.getElementById("account-tab-netlify")?.addEventListener("click", () => showAccountTab("netlify"));
+  document.getElementById("account-tab-providers")?.addEventListener("click", () => showAccountTab("providers"));
+
   const params = new URLSearchParams(window.location.search);
   if (params.get("account") === "linked") {
     openDrawer();
@@ -289,9 +306,12 @@ netlify login --request "Cove read-only site access" --json</code></pre>
     const reason = params.get("reason") || "oauth-failed";
     setTimeout(() => showError(`Netlify OAuth did not complete (${reason}).`), 400);
     history.replaceState({}, "", window.location.pathname);
+  } else if (params.get("code") && sessionStorage.getItem("cove-openrouter-verifier")) {
+    showAccountTab("providers");
+    openDrawer();
   } else {
     refresh();
   }
 
-  window.CoveAccount = { openDrawer, closeDrawer, refresh, setBackdrop };
+  window.CoveAccount = { openDrawer, closeDrawer, refresh, setBackdrop, showAccountTab };
 })();
