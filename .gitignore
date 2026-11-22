@@ -1,0 +1,11 @@
+node_modules/
+.netlify/
+logs/
+tmp/
+knowledge/cache/
+*.log
+.env
+.env.*
+.DS_Store
+coverage/
+shots/

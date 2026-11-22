@@ -1,0 +1,18 @@
+{
+  "name": "cove-netlify-guide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fan-made community Netlify expert guide. Not affiliated with Netlify. Powered locally by a pluggable model provider (agy by default).",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "netlify dev --no-open --port 8971",
+    "dev:live": "netlify dev --live=cove --no-open --port 8971",
+    "gitleaks": "gitleaks detect --source . --no-git -v"
+  },
+  "dependencies": {
+    "@netlify/server": "^0.1.6"
+  }
+}
