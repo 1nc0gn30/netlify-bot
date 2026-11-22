@@ -9,3 +9,4 @@ knowledge/cache/
 .DS_Store
 coverage/
 shots/
+.netlify

@@ -105,20 +105,27 @@ export async function withConcurrency(fn) {
   }
 }
 
+export function bufferResponse(body, status = 200, headers = {}) {
+  const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ""), "utf8");
+  const h = new Headers(headers);
+  h.delete("connection");
+  h.delete("keep-alive");
+  h.delete("transfer-encoding");
+  h.set("content-length", String(buf.byteLength));
+  return new Response(buf, { status, headers: h });
+}
+
 export function json(data, status = 200, extra = {}) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      ...extra,
-    },
+  return bufferResponse(JSON.stringify(data, null, 2), status, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+    ...extra,
   });
 }
 
 export function text(body, status = 200, type = "text/plain; charset=utf-8") {
-  return new Response(body, {
-    status,
-    headers: { "content-type": type, "cache-control": "no-store" },
+  return bufferResponse(body, status, {
+    "content-type": type,
+    "cache-control": "no-store",
   });
 }

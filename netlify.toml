@@ -6,3 +6,7 @@
   publish = "public"
   port = 8971
   autoLaunch = false
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["knowledge/**"]

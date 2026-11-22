@@ -124,6 +124,52 @@ async function loadStatus() {
   }
 }
 
+async function readSseReply(res, onToken) {
+  const type = res.headers.get("content-type") || "";
+  if (!res.body || !type.includes("text/event-stream")) return null;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let reply = "";
+  let sawEvent = false;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() || "";
+    for (const chunk of chunks) {
+      const line = chunk.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      const ev = JSON.parse(line.slice(5).trim());
+      sawEvent = true;
+      if (ev.type === "token") {
+        reply += ev.text;
+        onToken(reply);
+      } else if (ev.type === "done") {
+        reply = ev.text || reply;
+        onToken(reply);
+      } else if (ev.type === "error") {
+        throw new Error(ev.error || "The guide could not answer just now.");
+      }
+    }
+  }
+  if (!sawEvent || !reply.trim()) return null;
+  return reply;
+}
+
+async function chatRequest(messages, { stream }) {
+  return fetch(stream ? "/api/chat" : "/api/chat?stream=0", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-cove-session": sessionId,
+      accept: stream ? "text/event-stream" : "application/json",
+    },
+    body: JSON.stringify({ messages }),
+  });
+}
+
 async function sendQuestion(text) {
   const content = String(text || "").trim();
   if (!content || state.busy) return;
@@ -136,51 +182,35 @@ async function sendQuestion(text) {
   setState("thinking");
   let reply = "";
   try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-cove-session": sessionId,
-        accept: "text/event-stream",
-      },
-      body: JSON.stringify({ messages: state.messages }),
-    });
-    if (!res.ok || !res.body) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `Chat failed (${res.status})`);
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let started = false;
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const chunks = buffer.split("\n\n");
-      buffer = chunks.pop() || "";
-      for (const chunk of chunks) {
-        const line = chunk.split("\n").find((l) => l.startsWith("data:"));
-        if (!line) continue;
-        const ev = JSON.parse(line.slice(5).trim());
-        if (ev.type === "token") {
-          if (!started) {
-            started = true;
+    let usedStream = false;
+    try {
+      const res = await chatRequest(state.messages, { stream: true });
+      if (res.ok) {
+        const streamed = await readSseReply(res, (partial) => {
+          if (!usedStream) {
+            usedStream = true;
             setState("talking");
-            reply = "";
           }
-          reply += ev.text;
+          reply = partial;
           assistant.body.innerHTML = renderMarkdown(reply);
           els.transcript.scrollTop = els.transcript.scrollHeight;
-        } else if (ev.type === "done") {
-          reply = ev.text || reply;
-          assistant.body.innerHTML = renderMarkdown(reply);
-        } else if (ev.type === "error") {
-          throw new Error(ev.error || "The guide could not answer just now.");
-        }
+        });
+        if (streamed) reply = streamed;
       }
+    } catch {
+      reply = "";
     }
-    if (!reply.trim()) throw new Error("The guide returned an empty answer.");
+    if (!reply.trim()) {
+      const res = await chatRequest(state.messages, { stream: false });
+      const data = res.headers.get("content-type")?.includes("application/json")
+        ? await res.json()
+        : { error: await res.text() };
+      if (!res.ok) throw new Error(data.error || `Chat failed (${res.status})`);
+      reply = data.text || "";
+      if (!reply.trim()) throw new Error(data.error || "The guide returned an empty answer.");
+      setState("talking");
+      assistant.body.innerHTML = renderMarkdown(reply);
+    }
     state.messages.push({ role: "assistant", content: reply });
   } catch (err) {
     assistant.body.innerHTML = renderMarkdown(`I hit a snag: ${err.message}`);

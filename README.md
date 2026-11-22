@@ -52,6 +52,10 @@ Providers live in `netlify/server/lib/providers.js`. Set `COVE_PROVIDER=agy` (de
 
 To add a hosted provider later, implement `available()` and `stream()`, then `registerProvider(...)`.
 
+## Live tunnel note
+
+`netlify dev --live` exposes a public `*.netlify.live` URL over HTTP/2. Netlify Server responses are proxied as chunked HTTP/1.1 and pick up a hop-by-hop `Keep-Alive` header, which HTTP/2 clients reject (empty body, or curl error 92). Cove serves the HTTP API through a Netlify Function as well, buffering non-streaming replies with an explicit `Content-Length`. Chat tries SSE first and falls back to a JSON response.
+
 ## Safety
 
 - Per-session rate limit and input length cap
