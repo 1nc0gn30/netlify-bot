@@ -5,8 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Cove — Community Netlify Guide</title>
     <meta name="description" content="Fan-made community helper for the Netlify CLI and platform. Not affiliated with Netlify." />
-    <meta name="robots" content="noindex,nofollow" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://netlify-bot.nullai.tech/" />
+    <meta property="og:title" content="Cove — Community Netlify Guide" />
+    <meta property="og:description" content="Fan-made community helper for the Netlify CLI, functions, Server, and previews. 100% free and open access." />
+    <meta property="og:url" content="https://netlify-bot.nullai.tech/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://netlify-bot.nullai.tech/assets/cove-stone-idle.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@1nc0gn30" />
+    <meta name="twitter:creator" content="@1nc0gn30" />
+    <meta name="twitter:title" content="Cove — Community Netlify Guide" />
+    <meta name="twitter:description" content="Fan-made community helper for the Netlify CLI, functions, Server, and previews." />
+    <meta name="twitter:image" content="https://netlify-bot.nullai.tech/assets/cove-stone-idle.webp" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": ["WebApplication", "SoftwareApplication"],
+          "@id": "https://netlify-bot.nullai.tech/#app",
+          "name": "Cove — Community Netlify Guide",
+          "url": "https://netlify-bot.nullai.tech/",
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "All",
+          "description": "Fan-made community helper for the Netlify CLI, functions, Server, and previews grounded in official documentation.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock"
+          },
+          "author": {
+            "@type": "Person",
+            "name": "Neal Frazier",
+            "alternateName": "1nc0gn30",
+            "url": "https://nealfrazier.tech"
+          },
+          "creator": {
+            "@type": "Organization",
+            "name": "Neal Frazier Tech",
+            "url": "https://nullai.tech",
+            "sameAs": "https://github.com/1nc0gn30"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://netlify-bot.nullai.tech/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Is Cove free and open access?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Cove is 100% free and open access with zero paywalls. Voluntary support is available via Buy Us a Coffee on Stripe or Solana tips."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Where is conversation history stored?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Conversations are saved locally in your browser storage with full JSON export support."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter+Tight:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
@@ -19,7 +87,7 @@
 
     <header class="nav">
       <a class="brand" href="./" aria-label="Cove home">
-        <img class="brand-mark" src="./assets/mark.svg" width="32" height="32" alt="" />
+        <img class="brand-mark" src="./assets/mark.svg" width="32" height="32" alt="Cove community guide logo" />
         <span class="brand-name">Cove</span>
       </a>
       <nav class="nav-links" aria-label="Primary">
@@ -61,8 +129,8 @@
 
         <div class="hero-panel">
           <div class="mascot" id="buoy" data-state="idle" data-mood="idle" role="img" aria-label="Cove mark: a cream stone with a cyan inlet">
-            <img class="panel-art mascot-idle" src="./assets/cove-stone-idle.webp" width="1024" height="1024" alt="" />
-            <img class="panel-art mascot-thinking" src="./assets/cove-stone-thinking.webp" width="1024" height="1024" alt="" />
+            <img class="panel-art mascot-idle" src="./assets/cove-stone-idle.webp" width="1024" height="1024" alt="Cove mascot idle stone" />
+            <img class="panel-art mascot-thinking" src="./assets/cove-stone-thinking.webp" width="1024" height="1024" alt="Cove mascot thinking stone" />
             <canvas class="mascot-fx" id="mascot-fx" aria-hidden="true"></canvas>
             <span class="mascot-shadow" aria-hidden="true"></span>
           </div>
@@ -107,10 +175,10 @@
     <footer class="foot">
       <div class="foot-inner">
         <div class="foot-brand">
-          <img class="brand-mark" src="./assets/mark.svg" width="28" height="28" alt="" />
+          <img class="brand-mark" src="./assets/mark.svg" width="28" height="28" alt="Cove footer logo" />
           <div>
             <p class="brand-name">Cove</p>
-            <p class="foot-tag">Fan-made community guide. Not affiliated with Netlify.</p>
+            <p class="foot-tag">Fan-made community guide. Not affiliated with Netlify. Engineered by Neal Frazier Tech (<a href="https://github.com/1nc0gn30/netlify-bot" rel="noopener noreferrer">@1nc0gn30</a>) • <a href="https://nullai.tech" rel="noopener noreferrer">NullAI Platform</a>.</p>
           </div>
         </div>
         <p>
@@ -120,6 +188,10 @@
           <a href="https://docs.netlify.com/" rel="noopener">docs.netlify.com</a>.
           Share the knowledge file at
           <a href="/netlify-ai.md">/netlify-ai.md</a>.
+          &nbsp;|&nbsp;
+          <a href="https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X" target="_blank" rel="noopener noreferrer">☕ Buy Us a Coffee</a>
+          &nbsp;|&nbsp;
+          <a href="solana:GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK" title="Solana Tip Address: GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK">◎ Solana Tip (GG2e…dXoK)</a>
         </p>
       </div>
     </footer>
