@@ -121,6 +121,12 @@ async function collectReply({ messages, systemPrompt, signal, provider, apiKey }
 async function handleChatStream(req) {
   const prepared = await prepareChat(req);
   const encoder = new TextEncoder();
+  const abort = new AbortController();
+  const onReqAbort = () => abort.abort();
+  if (req.signal) {
+    if (req.signal.aborted) abort.abort();
+    else req.signal.addEventListener("abort", onReqAbort, { once: true });
+  }
   let closed = false;
   const stream = new ReadableStream({
     async start(controller) {
@@ -128,7 +134,6 @@ async function handleChatStream(req) {
         if (closed) return;
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
       };
-      const abort = new AbortController();
       const timer = setTimeout(() => abort.abort(), LIMITS.chatTimeoutMs);
       try {
         enqueue({ type: "status", state: "thinking", provider: prepared.provider.id, knowledgeAt: prepared.knowledge.refreshedAt });
@@ -144,13 +149,18 @@ async function handleChatStream(req) {
             reply += chunk;
             enqueue({ type: "token", text: chunk });
           }
-          enqueue({ type: "done", text: reply });
+          if (!String(reply).trim()) {
+            enqueue({ type: "error", error: "The guide returned an empty answer.", status: 502 });
+          } else {
+            enqueue({ type: "done", text: reply });
+          }
         });
       } catch (err) {
         const status = err.status || 500;
         enqueue({ type: "error", error: err.message || "The guide could not answer just now.", status });
       } finally {
         clearTimeout(timer);
+        if (req.signal) req.signal.removeEventListener("abort", onReqAbort);
         if (!closed) {
           closed = true;
           controller.close();
@@ -159,6 +169,8 @@ async function handleChatStream(req) {
     },
     cancel() {
       closed = true;
+      abort.abort();
+      if (req.signal) req.signal.removeEventListener("abort", onReqAbort);
     },
   });
   return sse(stream);
@@ -238,8 +250,11 @@ function assertAnalyzeLimit(sessionId) {
 async function handleAnalyze(req) {
   const sessionId = getSessionId(req);
   const payload = await req.json().catch(() => null);
-  const messages = Array.isArray(payload?.messages) ? payload.messages.slice(-12) : [];
+  const messages = Array.isArray(payload?.messages)
+    ? payload.messages.slice(-12).filter((m) => String(m?.content || "").trim())
+    : [];
   const fallback = keywordAnalyze(messages);
+  if (!messages.length) return json({ ok: true, ...fallback, source: "keywords" });
   try {
     assertAnalyzeLimit(sessionId);
   } catch {
@@ -249,13 +264,14 @@ async function handleAnalyze(req) {
   const ready = await provider.available();
   if (!ready.ok) return json({ ok: true, ...fallback });
   const { systemPrompt, userContent } = analyzePrompt(messages);
+  const combinedPrompt = `${systemPrompt}\n\nConversation:\n${userContent}`;
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), 25_000);
   try {
     let reply = "";
     for await (const chunk of provider.stream({
       messages: [{ role: "user", content: userContent }],
-      systemPrompt,
+      systemPrompt: combinedPrompt,
       signal: abort.signal,
       timeoutMs: 25_000,
     })) {

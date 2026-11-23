@@ -38,6 +38,7 @@
   };
 
   let pollTimer = 0;
+  let ticketBusy = false;
   let latest = null;
 
   function setBackdrop() {
@@ -199,7 +200,10 @@ netlify login --request "Cove read-only site access" --json</code></pre>
     pollTimer = 0;
   }
 
-  async function startTicket() {
+  async function startTicket(button) {
+    if (ticketBusy) return;
+    ticketBusy = true;
+    if (button) button.disabled = true;
     const box = document.getElementById("ticket-status");
     try {
       const data = await api("/api/netlify/cli/request", { method: "POST", body: "{}" });
@@ -209,7 +213,16 @@ netlify login --request "Cove read-only site access" --json</code></pre>
           <p class="account-copy">Waiting for approval…</p>`;
       }
       stopPoll();
+      const maxPolls = Math.ceil(((data.expiresInSec || 600) / 3)) + 2;
+      let polls = 0;
       pollTimer = window.setInterval(async () => {
+        polls += 1;
+        if (polls > maxPolls) {
+          stopPoll();
+          const currentBox = document.getElementById("ticket-status");
+          if (currentBox) currentBox.innerHTML = `<p class="account-error">The ticket expired. Start a new one to try again.</p>`;
+          return;
+        }
         try {
           const check = await api(`/api/netlify/cli/check?ticket=${encodeURIComponent(data.ticketId)}`);
           if (check.status === "authorized") {
@@ -217,15 +230,20 @@ netlify login --request "Cove read-only site access" --json</code></pre>
             render(check);
           } else if (check.status === "denied" || check.status === "expired") {
             stopPoll();
-            if (box) box.innerHTML = `<p class="account-error">The ticket was ${escapeHtml(check.status)}. Start a new one to try again.</p>`;
+            const currentBox = document.getElementById("ticket-status");
+            if (currentBox) currentBox.innerHTML = `<p class="account-error">The ticket was ${escapeHtml(check.status)}. Start a new one to try again.</p>`;
           }
         } catch (err) {
           stopPoll();
-          if (box) box.innerHTML = `<p class="account-error">${escapeHtml(err.message)}</p>`;
+          const currentBox = document.getElementById("ticket-status");
+          if (currentBox) currentBox.innerHTML = `<p class="account-error">${escapeHtml(err.message)}</p>`;
         }
       }, 3000);
     } catch (err) {
       if (box) box.innerHTML = `<p class="account-error">${escapeHtml(err.message)}</p>`;
+    } finally {
+      ticketBusy = false;
+      if (button) button.disabled = false;
     }
   }
 
@@ -239,7 +257,8 @@ netlify login --request "Cove read-only site access" --json</code></pre>
   }
 
   els.panel?.addEventListener("click", async (e) => {
-    if (e.target.closest("#start-ticket")) startTicket();
+    const startTicketBtn = e.target.closest("#start-ticket");
+    if (startTicketBtn) startTicket(startTicketBtn);
     if (e.target.closest("#start-oauth")) startOauth();
     if (e.target.closest("#refresh-sites")) {
       try {
@@ -250,6 +269,7 @@ netlify login --request "Cove read-only site access" --json</code></pre>
       }
     }
     if (e.target.closest("#disconnect-netlify")) {
+      stopPoll();
       try {
         await api("/api/netlify/disconnect", { method: "POST", body: "{}" });
         await refresh();

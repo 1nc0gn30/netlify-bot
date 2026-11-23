@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "netlify dev --no-open --port 8971",
     "dev:live": "netlify dev --live=cove --no-open --port 8971",
+    "test": "node --test test/*.test.js",
     "gitleaks": "gitleaks detect --source . --no-git -v"
   },
   "dependencies": {

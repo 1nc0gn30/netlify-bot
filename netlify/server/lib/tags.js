@@ -96,11 +96,11 @@ export function parseAnalyzeReply(raw, messages = []) {
   const fallback = keywordAnalyze(messages);
   const text = String(raw || "").trim();
   if (!text) return fallback;
-  const match = text.match(/\{[\s\S]*\}/);
+  const match = text.match(/\{[\s\S]*?\}/) || text.match(/\{[\s\S]*\}/);
   if (!match) return fallback;
   try {
     const parsed = JSON.parse(match[0]);
-    const title = String(parsed.title || "").replace(/\s+/g, " ").trim();
+    const title = String(parsed.title || "").replace(/\s+/g, " ").trim().slice(0, 80);
     const tags = Array.isArray(parsed.tags)
       ? parsed.tags.map((t) => String(t).trim()).filter((t) => TAGS.includes(t))
       : [];

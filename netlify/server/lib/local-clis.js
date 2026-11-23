@@ -120,24 +120,34 @@ const RECIPES = {
   },
 };
 
-export async function detectLocalClis() {
-  const found = [];
-  for (const recipe of Object.values(RECIPES)) {
-    const bin = firstExisting(recipe.bins);
-    if (!bin) continue;
-    if (looksLikeHarness(bin)) continue;
-    const version = await runTimed(bin, recipe.versionArgs);
-    if (!version.ok) continue;
-    found.push({
-      id: recipe.id,
-      label: recipe.label,
-      detail: recipe.detail,
-      bin,
-      version: version.text.split("\n")[0].slice(0, 120),
-      kind: "local-cli",
-    });
+const DETECT_TTL_MS = 60 * 1000;
+let cachedDetection = null;
+let cachedAt = 0;
+
+async function probeRecipe(recipe) {
+  const bin = firstExisting(recipe.bins);
+  if (!bin) return null;
+  if (looksLikeHarness(bin)) return null;
+  const version = await runTimed(bin, recipe.versionArgs);
+  if (!version.ok) return null;
+  return {
+    id: recipe.id,
+    label: recipe.label,
+    detail: recipe.detail,
+    bin,
+    version: version.text.split("\n")[0].slice(0, 120),
+    kind: "local-cli",
+  };
+}
+
+export async function detectLocalClis({ force = false } = {}) {
+  if (!force && cachedDetection && Date.now() - cachedAt < DETECT_TTL_MS) {
+    return cachedDetection;
   }
-  return found;
+  const results = await Promise.all(Object.values(RECIPES).map(probeRecipe));
+  cachedDetection = results.filter(Boolean);
+  cachedAt = Date.now();
+  return cachedDetection;
 }
 
 export function createLocalCliProvider(id) {

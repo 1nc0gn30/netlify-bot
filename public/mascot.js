@@ -137,6 +137,7 @@
 
   function pointToward(clientX, clientY, amountX, amountY) {
     const rect = root.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
     const nx = ((clientX - (rect.left + rect.width / 2)) / rect.width) * 2;
     const ny = ((clientY - (rect.top + rect.height / 2)) / rect.height) * 2;
     offset.tx = Math.max(-1, Math.min(1, nx)) * amountX;
@@ -146,6 +147,11 @@
   function onPointer(event) {
     if (reduced()) return;
     pointToward(event.clientX, event.clientY, 7, 4);
+  }
+
+  function onPointerLeave() {
+    offset.tx = 0;
+    offset.ty = 0;
   }
 
   function caretTarget() {
@@ -177,7 +183,12 @@
   }
 
   window.addEventListener("pointermove", onPointer, { passive: true });
+  document.documentElement.addEventListener("pointerleave", onPointerLeave, { passive: true });
   window.addEventListener("resize", resize);
+  if (typeof ResizeObserver === "function") {
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(root);
+  }
   motion.addEventListener("change", () => {
     resize();
     if (reduced()) stopLoop();

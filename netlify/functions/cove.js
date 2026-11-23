@@ -25,11 +25,11 @@ export default async (req) => {
     return response;
   }
   const buf = Buffer.from(await response.arrayBuffer());
-  const headers = {};
+  const headers = new Headers();
   for (const [name, value] of response.headers) {
     const lower = name.toLowerCase();
     if (lower === "connection" || lower === "keep-alive" || lower === "transfer-encoding") continue;
-    headers[name] = value;
+    headers.append(name, value);
   }
   return bufferResponse(buf, response.status, headers);
 };

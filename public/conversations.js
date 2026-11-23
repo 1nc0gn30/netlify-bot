@@ -73,17 +73,23 @@ function createConversation(seedMessages = []) {
 
 function saveMessages(messages) {
   let item = currentConvo();
-  if (!item) item = createConversation(messages);
-  item.messages = messages;
+  const cloned = (Array.isArray(messages) ? messages : []).map((m) => ({
+    role: m.role === "assistant" ? "assistant" : "user",
+    content: String(m.content || ""),
+  }));
+  if (!item) item = createConversation(cloned);
+  else item.messages = cloned;
   item.updatedAt = nowIso();
   if (item.title === "New conversation") {
-    const first = messages.find((m) => m.role === "user" && String(m.content || "").trim());
-    if (first) item.title = String(first.content).replace(/\s+/g, " ").trim().slice(0, 56);
+    const first = cloned.find((m) => m.role === "user" && m.content.trim());
+    if (first) item.title = first.content.replace(/\s+/g, " ").trim().slice(0, 56);
   }
   persistStore();
   renderConversationList();
   return item;
 }
+
+const analyzeSeq = new WeakMap();
 
 async function analyzeCurrent() {
   const item = currentConvo();
@@ -91,11 +97,15 @@ async function analyzeCurrent() {
   if (!item || !hooks?.api) return item;
   const usable = (item.messages || []).filter((m) => m.role === "user" || (m.role === "assistant" && !String(m.content).startsWith("Hi, I’m Cove")));
   if (!usable.length) return item;
+  const seq = (analyzeSeq.get(item) || 0) + 1;
+  analyzeSeq.set(item, seq);
   try {
     const result = await hooks.api("/api/conversations/analyze", {
       method: "POST",
       body: JSON.stringify({ messages: usable.slice(-12) }),
     });
+    if (analyzeSeq.get(item) !== seq) return item;
+    if (!convoState.items.includes(item)) return item;
     if (result?.title) item.title = result.title;
     if (Array.isArray(result?.tags)) item.tags = result.tags;
     item.tagSource = result?.source || "keywords";
@@ -133,7 +143,8 @@ function renderTagFilters() {
   const tags = ["All", ...CONVO_TAGS.filter((t) => used.has(t) || t === convoState.filterTag)];
   root.innerHTML = tags.map((tag) => {
     const on = tag === convoState.filterTag;
-    return `<button type="button" class="tag-chip${on ? " is-active" : ""}" data-tag="${tag}" aria-pressed="${on}">${tag}</button>`;
+    const safeTag = escapeText(tag);
+    return `<button type="button" class="tag-chip${on ? " is-active" : ""}" data-tag="${safeTag}" aria-pressed="${on}">${safeTag}</button>`;
   }).join("");
 }
 
@@ -145,16 +156,17 @@ function renderConversationList() {
   if (empty) empty.hidden = items.length > 0;
   root.innerHTML = items.map((item) => {
     const active = item.id === convoState.currentId;
-    const tags = (item.tags || []).map((t) => `<span class="mini-tag">${t}</span>`).join("");
+    const safeId = escapeText(item.id);
+    const tags = (item.tags || []).map((t) => `<span class="mini-tag">${escapeText(t)}</span>`).join("");
     const preview = previewOf(item.messages);
     return `<li>
-      <button type="button" class="convo-item${active ? " is-active" : ""}" data-id="${item.id}">
+      <button type="button" class="convo-item${active ? " is-active" : ""}" data-id="${safeId}">
         <span class="convo-title">${escapeText(item.title || "Untitled")}</span>
         <span class="convo-meta">${formatWhen(item.updatedAt)}</span>
         ${preview ? `<span class="convo-preview">${escapeText(preview)}</span>` : ""}
         ${tags ? `<span class="convo-tags">${tags}</span>` : ""}
       </button>
-      <button type="button" class="convo-delete" data-delete="${item.id}" aria-label="Delete conversation">Delete</button>
+      <button type="button" class="convo-delete" data-delete="${safeId}" aria-label="Delete conversation">Delete</button>
     </li>`;
   }).join("");
 }

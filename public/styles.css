@@ -1248,6 +1248,25 @@ h1 {
   cursor: pointer;
 }
 
+.provider-card-cloud {
+  flex-direction: column;
+  gap: 0.45rem;
+  cursor: default;
+}
+
+.provider-choice {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  cursor: pointer;
+  width: 100%;
+}
+
+.provider-controls {
+  padding-left: 1.55rem;
+  width: 100%;
+}
+
 .provider-card input {
   margin-top: 0.3rem;
 }

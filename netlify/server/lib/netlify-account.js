@@ -12,7 +12,7 @@ import { pathToFileURL } from "node:url";
 import { getSessionId, json, text } from "./guards.js";
 import { projectRoot } from "./paths.js";
 
-const STORE_PATH = path.join(projectRoot, "logs/cove-account-sessions.json");
+const STORE_PATH = process.env.COVE_ACCOUNT_STORE_PATH || path.join(projectRoot, "logs/cove-account-sessions.json");
 
 const API = "https://api.netlify.com/api/v1";
 const TOKEN_URL = "https://api.netlify.com/oauth/token";
@@ -71,7 +71,7 @@ async function loadStore() {
 async function saveStore() {
   pruneStore();
   await mkdir(path.dirname(STORE_PATH), { recursive: true });
-  const tmp = `${STORE_PATH}.tmp`;
+  const tmp = `${STORE_PATH}.${process.pid}.${crypto.randomUUID()}.tmp`;
   await writeFile(tmp, JSON.stringify(store), { encoding: "utf8", mode: 0o600 });
   await rename(tmp, STORE_PATH);
   await chmod(STORE_PATH, 0o600);
@@ -308,8 +308,9 @@ export async function handleNetlifyAccount(req) {
     const accessToken = tokenResponse?.access_token;
     if (!accessToken) return json({ error: "Netlify authorized the ticket but did not return a token." }, 502);
     const link = await hydrate(accessToken, "cli-ticket");
-    store.links[sessionId] = link; await saveStore();
-    delete store.tickets[ticketId]; await saveStore();
+    store.links[sessionId] = link;
+    delete store.tickets[ticketId];
+    await saveStore();
     return json({ ok: true, status: "authorized", ...publicLink(link) });
   }
 
@@ -339,19 +340,23 @@ export async function handleNetlifyAccount(req) {
       }, 501);
     }
     if (sessionId === "anon") return json({ error: "A Cove session is required." }, 400);
+    const redirectUri = redirectUriFrom(req);
     const state = `${sessionId}.${crypto.randomUUID().replaceAll("-", "")}`;
-    store.oauthStates[state] = { sessionId, createdAt: Date.now() }; await saveStore();
+    store.oauthStates[state] = { sessionId, redirectUri, createdAt: Date.now() }; await saveStore();
     const authorizeUrl = `${AUTHORIZE}?${new URLSearchParams({
       response_type: "code",
       client_id: process.env.NETLIFY_OAUTH_CLIENT_ID,
-      redirect_uri: redirectUriFrom(req),
+      redirect_uri: redirectUri,
       state,
     }).toString()}`;
     return json({ ok: true, url: authorizeUrl });
   }
 
   if (pathname === "/api/netlify/oauth/callback" && req.method === "GET") {
-    const origin = new URL(redirectUriFrom(req)).origin;
+    const state = url.searchParams.get("state") || "";
+    const meta = store.oauthStates[state];
+    const effectiveRedirectUri = meta?.redirectUri || redirectUriFrom(req);
+    const origin = new URL(effectiveRedirectUri).origin;
     const fail = (reason) => {
       const target = new URL("/", origin);
       target.searchParams.set("account", "error");
@@ -359,17 +364,23 @@ export async function handleNetlifyAccount(req) {
       return new Response(null, { status: 302, headers: { location: target.toString(), "cache-control": "no-store" } });
     };
     if (!oauthConfigured()) return fail("oauth-not-configured");
+    if (meta) {
+      delete store.oauthStates[state];
+      await saveStore();
+    }
+    const oauthError = url.searchParams.get("error");
+    if (oauthError) {
+      const safeReason = oauthError.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || "oauth-denied";
+      return fail(safeReason);
+    }
     const code = url.searchParams.get("code") || "";
-    const state = url.searchParams.get("state") || "";
-    const meta = store.oauthStates[state];
-    delete store.oauthStates[state]; await saveStore();
     if (!code || !meta || Date.now() - meta.createdAt > TICKET_TTL_MS) return fail("invalid-or-expired");
     const form = new URLSearchParams({
       grant_type: "authorization_code",
       code,
       client_id: process.env.NETLIFY_OAUTH_CLIENT_ID,
       client_secret: process.env.NETLIFY_OAUTH_CLIENT_SECRET,
-      redirect_uri: redirectUriFrom(req),
+      redirect_uri: effectiveRedirectUri,
     });
     try {
       const tokenResponse = await netlifyFetch(TOKEN_URL, { method: "POST", form });

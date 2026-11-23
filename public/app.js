@@ -47,7 +47,7 @@ function escapeHtml(text) {
 
 function renderMarkdown(raw) {
   const fences = [];
-  let text = String(raw).replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
+  let text = String(raw).replace(/```([a-zA-Z0-9_.+-]+)?\r?\n([\s\S]*?)```/g, (_, lang, code) => {
     const i = fences.length;
     fences.push(`<pre><code class="lang-${escapeHtml(lang || "text")}">${escapeHtml(code.trimEnd())}</code></pre>`);
     return `\u0000FENCE${i}\u0000`;
@@ -125,9 +125,8 @@ function formatTime(iso) {
 async function loadStatus() {
   try {
     const status = await api("/api/status");
-    if (window.CoveProviders?.currentId) {
-      window.CoveProviders.syncStatus?.();
-    } else {
+    const synced = window.CoveProviders?.syncStatus?.();
+    if (!synced) {
       els.statusProvider.textContent = status.provider.available
         ? status.provider.label
         : status.provider.reason || "unavailable";
@@ -151,27 +150,44 @@ async function readSseReply(res, onToken) {
   let buffer = "";
   let reply = "";
   let sawEvent = false;
+  const processChunk = (chunk) => {
+    const dataLines = [];
+    for (const line of chunk.split("\n")) {
+      if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+    }
+    if (!dataLines.length) return;
+    const raw = dataLines.join("\n").trim();
+    if (!raw || raw === "[DONE]") return;
+    let ev;
+    try {
+      ev = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    sawEvent = true;
+    if (ev.type === "token") {
+      reply += ev.text;
+      onToken(reply);
+    } else if (ev.type === "done") {
+      reply = ev.text || reply;
+      onToken(reply);
+    } else if (ev.type === "error") {
+      const err = new Error(ev.error || "The guide could not answer just now.");
+      err.noFallback = true;
+      throw err;
+    }
+  };
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n?/g, "\n");
     const chunks = buffer.split("\n\n");
     buffer = chunks.pop() || "";
-    for (const chunk of chunks) {
-      const line = chunk.split("\n").find((l) => l.startsWith("data:"));
-      if (!line) continue;
-      const ev = JSON.parse(line.slice(5).trim());
-      sawEvent = true;
-      if (ev.type === "token") {
-        reply += ev.text;
-        onToken(reply);
-      } else if (ev.type === "done") {
-        reply = ev.text || reply;
-        onToken(reply);
-      } else if (ev.type === "error") {
-        throw new Error(ev.error || "The guide could not answer just now.");
-      }
-    }
+    for (const chunk of chunks) processChunk(chunk);
+  }
+  buffer += decoder.decode().replace(/\r\n?/g, "\n");
+  if (buffer.trim()) {
+    for (const chunk of buffer.split("\n\n")) processChunk(chunk);
   }
   if (!sawEvent || !reply.trim()) return null;
   return reply;
@@ -195,6 +211,18 @@ async function chatRequest(messages, { stream }) {
   });
 }
 
+async function readErrorMessage(res) {
+  const type = res.headers.get("content-type") || "";
+  if (type.includes("application/json")) {
+    const data = await res.json().catch(() => null);
+    if (data && (data.error || data.hint)) return data.error || data.hint;
+  } else {
+    const text = (await res.text().catch(() => "")).trim();
+    if (text) return text;
+  }
+  return `Chat failed (${res.status})`;
+}
+
 async function sendQuestion(text) {
   const content = String(text || "").trim();
   if (!content || state.busy) return;
@@ -211,19 +239,23 @@ async function sendQuestion(text) {
     let usedStream = false;
     try {
       const res = await chatRequest(state.messages, { stream: true });
-      if (res.ok) {
-        const streamed = await readSseReply(res, (partial) => {
-          if (!usedStream) {
-            usedStream = true;
-            setState("talking");
-          }
-          reply = partial;
-          assistant.body.innerHTML = renderMarkdown(reply);
-          scrollTranscript();
-        });
-        if (streamed) reply = streamed;
+      if (!res.ok) {
+        const err = new Error(await readErrorMessage(res));
+        err.noFallback = res.status < 500 || res.status === 503;
+        throw err;
       }
-    } catch {
+      const streamed = await readSseReply(res, (partial) => {
+        if (!usedStream) {
+          usedStream = true;
+          setState("talking");
+        }
+        reply = partial;
+        assistant.body.innerHTML = renderMarkdown(reply);
+        scrollTranscript();
+      });
+      if (streamed) reply = streamed;
+    } catch (err) {
+      if (err?.noFallback) throw err;
       reply = "";
     }
     if (!reply.trim()) {
@@ -247,6 +279,7 @@ async function sendQuestion(text) {
     assistant.body.innerHTML = renderMarkdown(`I hit a snag: ${err.message}`);
     setState("error");
   } finally {
+    assistant.body.classList.remove("streaming");
     setBusy(false);
     if (reply.trim()) {
       setState(/```/.test(reply) ? "code" : "success");
@@ -292,15 +325,17 @@ els.research.addEventListener("click", async () => {
   els.research.disabled = true;
   setState("thinking");
   els.hint.textContent = "Researching official sources and running read-only CLI tests…";
+  let ok = false;
   try {
     const result = await api("/api/research", { method: "POST", body: "{}" });
     els.hint.textContent = result.summary || "Guide updated.";
     await loadStatus();
+    ok = true;
   } catch (err) {
     els.hint.textContent = err.message;
   } finally {
     els.research.disabled = false;
-    setState("idle");
+    setState(ok ? "success" : "error");
   }
 });
 
@@ -322,6 +357,7 @@ function isWelcome(message) {
 }
 
 function startNewConversation() {
+  if (state.busy) return;
   state.messages = [];
   document.querySelector(".chat-card")?.classList.remove("is-chatting");
   els.transcript.innerHTML = "";
@@ -330,6 +366,7 @@ function startNewConversation() {
 }
 
 function loadConversation(item) {
+  if (state.busy) return;
   const messages = Array.isArray(item?.messages) ? item.messages : [];
   state.messages = messages.filter((m) => !isWelcome(m));
   els.transcript.innerHTML = "";

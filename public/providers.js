@@ -2,6 +2,7 @@
   const KEYS = "cove-provider-keys";
   const PICK = "cove-provider-id";
   const VERIFIER = "cove-openrouter-verifier";
+  const OR_STATE = "cove-openrouter-state";
 
   const sessionId = (() => {
     const key = "cove-session";
@@ -68,6 +69,7 @@
   const panel = document.getElementById("providers-panel");
   const status = document.getElementById("status-provider");
   let catalog = null;
+  let lastError = "";
 
   function providerLabel(id) {
     const local = catalog?.local?.find((p) => p.id === id);
@@ -106,20 +108,26 @@
              ${hasKey ? `<button type="button" class="btn btn-muted" data-clear-key="${escapeHtml(item.id)}">Clear</button>` : ""}
            </form>
            ${item.keyUrl ? `<p class="provider-meta"><a href="${escapeHtml(item.keyUrl)}" rel="noopener" target="_blank">Get an API key</a></p>` : ""}`;
-      return `<label class="provider-card">
-        <input type="radio" name="cove-provider" value="${escapeHtml(item.id)}" ${checked} />
-        <span>
-          <strong>${escapeHtml(item.label)}</strong>
-          <span class="account-copy">${escapeHtml(item.authLabel)}</span>
+      return `<div class="provider-card provider-card-cloud">
+        <label class="provider-choice">
+          <input type="radio" name="cove-provider" value="${escapeHtml(item.id)}" ${checked} />
+          <span>
+            <strong>${escapeHtml(item.label)}</strong>
+            <span class="account-copy">${escapeHtml(item.authLabel)}</span>
+          </span>
+        </label>
+        <div class="provider-controls">
           ${item.docs ? `<p class="provider-meta"><a href="${escapeHtml(item.docs)}" rel="noopener" target="_blank">Docs</a></p>` : ""}
           ${keyBlock}
-        </span>
-      </label>`;
+        </div>
+      </div>`;
     }).join("");
 
     const skipped = (catalog.skipped || []).map((item) => `<li><strong>${escapeHtml(item.id)}</strong> — ${escapeHtml(item.reason)}</li>`).join("");
+    const errorHtml = lastError ? `<p class="account-error">${escapeHtml(lastError)}</p>` : "";
 
     panel.innerHTML = `
+      ${errorHtml}
       <p class="account-lead">Choose who answers. Local CLIs run on the machine hosting this session, sandboxed like agy. Cloud providers use a key kept in this browser tab only — never written to disk or application logs. Cove does not show a sign-in button unless that provider actually offers third-party OAuth for model inference.</p>
       <section class="account-card">
         <p class="eyebrow">This machine</p>
@@ -140,35 +148,64 @@
   }
 
   function syncStatus() {
+    if (!status || !catalog) return false;
     const id = currentId();
     const label = providerLabel(id);
-    const needsKey = (catalog?.cloud || []).some((item) => item.id === id);
+    const needsKey = (catalog.cloud || []).some((item) => item.id === id);
     const ready = !needsKey || Boolean(keyFor(id));
-    if (status && catalog) {
-      status.textContent = ready ? label : `${label} (key needed)`;
-    }
+    status.textContent = ready ? label : `${label} (key needed)`;
+    return true;
   }
 
   async function startOpenRouter() {
-    const { verifier, challenge } = await pkce();
-    sessionStorage.setItem(VERIFIER, verifier);
-    const callback = `${window.location.origin}/`;
-    const url = `https://openrouter.ai/auth?${new URLSearchParams({
-      callback_url: callback,
-      code_challenge: challenge,
-      code_challenge_method: "S256",
-      state: "cove-openrouter",
-      key_label: "Cove",
-    }).toString()}`;
-    window.location.href = url;
+    lastError = "";
+    if (!window.crypto?.subtle) {
+      lastError = "OpenRouter PKCE requires a secure context (HTTPS or localhost).";
+      render();
+      return;
+    }
+    try {
+      const { verifier, challenge } = await pkce();
+      const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
+      sessionStorage.setItem(VERIFIER, verifier);
+      sessionStorage.setItem(OR_STATE, state);
+      const callback = `${window.location.origin}/`;
+      const url = `https://openrouter.ai/auth?${new URLSearchParams({
+        callback_url: callback,
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state,
+        key_label: "Cove",
+      }).toString()}`;
+      window.location.href = url;
+    } catch (err) {
+      lastError = err.message || "Could not start OpenRouter PKCE flow.";
+      render();
+    }
   }
 
   async function finishOpenRouter() {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    if (!code) return false;
     const verifier = sessionStorage.getItem(VERIFIER);
-    if (!verifier) return false;
+    const expectedState = sessionStorage.getItem(OR_STATE);
+    const returnedError = params.get("error");
+    if (returnedError && verifier) {
+      sessionStorage.removeItem(VERIFIER);
+      sessionStorage.removeItem(OR_STATE);
+      history.replaceState({}, "", window.location.pathname);
+      lastError = `OpenRouter sign-in did not complete (${returnedError}).`;
+      return false;
+    }
+    const code = params.get("code");
+    if (!code || !verifier) return false;
+    const returnedState = params.get("state");
+    if (expectedState && returnedState && returnedState !== expectedState) {
+      sessionStorage.removeItem(VERIFIER);
+      sessionStorage.removeItem(OR_STATE);
+      history.replaceState({}, "", window.location.pathname);
+      lastError = "OpenRouter state mismatch. Please try signing in again.";
+      return false;
+    }
     try {
       const res = await fetch("https://openrouter.ai/api/v1/auth/keys", {
         method: "POST",
@@ -177,15 +214,18 @@
       });
       const data = await res.json().catch(() => ({}));
       sessionStorage.removeItem(VERIFIER);
+      sessionStorage.removeItem(OR_STATE);
       history.replaceState({}, "", window.location.pathname);
-      if (!res.ok || !data.key) throw new Error(data.error || "OpenRouter did not return a key.");
+      if (!res.ok || !data.key) throw new Error(data.error?.message || data.error || "OpenRouter did not return a key.");
       setKey("openrouter", data.key);
       setCurrentId("openrouter");
+      lastError = "";
       return true;
     } catch (err) {
       sessionStorage.removeItem(VERIFIER);
+      sessionStorage.removeItem(OR_STATE);
       history.replaceState({}, "", window.location.pathname);
-      if (panel) panel.innerHTML = `<p class="account-error">${escapeHtml(err.message)}</p>` + (panel.innerHTML || "");
+      lastError = err.message || "OpenRouter key exchange failed.";
       return false;
     }
   }
@@ -225,11 +265,13 @@
   async function load() {
     try {
       const res = await fetch("/api/providers", { headers: { "x-cove-session": sessionId } });
+      if (!res.ok) throw new Error(`Could not load providers (${res.status})`);
       catalog = await res.json();
       if (!localStorage.getItem(PICK) && catalog.defaultId) setCurrentId(catalog.defaultId);
       await finishOpenRouter();
       render();
     } catch (err) {
+      if (status) status.textContent = providerLabel(currentId());
       if (panel) panel.innerHTML = `<p class="account-error">${escapeHtml(err.message)}</p>`;
     }
   }

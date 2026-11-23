@@ -9,7 +9,7 @@ function authHeader(apiKey) {
   return { authorization: `Bearer ${apiKey}`, "content-type": "application/json" };
 }
 
-function extractDelta(ev) {
+export function extractDelta(ev) {
   if (!ev || typeof ev !== "object") return "";
   if (ev.type === "content_block_delta" || ev.type === "content_block_start") {
     return ev.delta?.text || ev.delta?.content || ev.content_block?.text || "";
@@ -24,7 +24,24 @@ function extractDelta(ev) {
   );
 }
 
-async function* iterateSse(res) {
+function parseSseBlock(block) {
+  const dataLines = [];
+  for (const line of block.split("\n")) {
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+  if (!dataLines.length) return "";
+  const data = dataLines.join("\n").trim();
+  if (!data || data === "[DONE]") return "";
+  try {
+    return extractDelta(JSON.parse(data));
+  } catch {
+    return "";
+  }
+}
+
+export async function* iterateSse(res) {
   if (!res.body) return;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -32,31 +49,34 @@ async function* iterateSse(res) {
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n?/g, "\n");
     const parts = buffer.split("\n\n");
     buffer = parts.pop() || "";
     for (const part of parts) {
-      const line = part.split("\n").find((l) => l.startsWith("data:"));
-      if (!line) continue;
-      const data = line.slice(5).trim();
-      if (!data || data === "[DONE]") continue;
-      try {
-        const delta = extractDelta(JSON.parse(data));
-        if (delta) yield delta;
-      } catch {
-        /* ignore keep-alives and non-JSON lines */
-      }
+      const delta = parseSseBlock(part);
+      if (delta) yield delta;
+    }
+  }
+  buffer += decoder.decode().replace(/\r\n?/g, "\n");
+  if (buffer.trim()) {
+    for (const part of buffer.split("\n\n")) {
+      const delta = parseSseBlock(part);
+      if (delta) yield delta;
     }
   }
 }
 
-async function readSse(res, onText) {
-  let full = "";
-  for await (const delta of iterateSse(res)) {
-    full += delta;
-    if (onText) onText(delta);
+async function readUpstreamError(res, label) {
+  let detail = "";
+  try {
+    const raw = await res.text();
+    const parsed = JSON.parse(raw);
+    detail = parsed?.error?.message || parsed?.message || (typeof parsed?.error === "string" ? parsed.error : "");
+  } catch {
+    /* ignore unparseable error body */
   }
-  return full;
+  const clean = String(detail || "").replace(/\s+/g, " ").trim().slice(0, 200);
+  return clean ? `${label} returned ${res.status}: ${clean}` : `${label} returned ${res.status}.`;
 }
 
 async function fetchJson(url, options, timeoutMs, signal) {
@@ -154,7 +174,7 @@ export function createCloudProvider(entry) {
             stream: true,
           }),
         }, timeoutMs, signal);
-        if (!res.ok) throw new ProviderError(`Anthropic returned ${res.status}.`, res.status);
+        if (!res.ok) throw new ProviderError(await readUpstreamError(res, "Anthropic"), res.status);
         let produced = false;
         for await (const delta of iterateSse(res)) {
           produced = true;
@@ -170,7 +190,7 @@ export function createCloudProvider(entry) {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] }),
         }, timeoutMs, signal);
-        if (!res.ok) throw new ProviderError(`Gemini returned ${res.status}.`, res.status);
+        if (!res.ok) throw new ProviderError(await readUpstreamError(res, "Gemini"), res.status);
         let produced = false;
         for await (const delta of iterateSse(res)) {
           produced = true;
@@ -201,7 +221,7 @@ export function createCloudProvider(entry) {
           ],
         }),
       }, timeoutMs, signal);
-      if (!res.ok) throw new ProviderError(`${entry.label} returned ${res.status}.`, res.status);
+      if (!res.ok) throw new ProviderError(await readUpstreamError(res, entry.label), res.status);
       let produced = false;
       for await (const delta of iterateSse(res)) {
         produced = true;
