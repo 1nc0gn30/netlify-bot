@@ -1,0 +1,17 @@
+title = "Cove Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public open-source Netlify CLI OAuth client ID (published in @netlify/cli)"
+regexes = [
+  '''d6f37de6614df7ae58664cfca524744d73807a377f5ee71f1a254f78412e3750'''
+]
+
+[[allowlists]]
+description = "Synthetic test fixtures in unit test suite"
+paths = [
+  '''^test/cove\.test\.js$''',
+  '''^tests/test_app\.mjs$'''
+]
