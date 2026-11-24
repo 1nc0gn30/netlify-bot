@@ -9,6 +9,7 @@ import {
   probeBridge,
   releaseLease,
 } from "../netlify/server/lib/signal-bridge.js";
+import { AgyProvider } from "../netlify/server/lib/agy.js";
 
 function listen(handler) {
   const server = createServer(handler);
@@ -170,4 +171,35 @@ test("releaseLease and postHandoff hit the bridge routes", async () => {
   assert.equal(posts[1].url, "/api/agents/message");
   assert.equal(posts[1].body.body, "hello from unit test");
   assert.equal(posts[1].body.recipient, "agy");
+});
+
+test("AgyProvider: hard lease denial throws clear 403 ProviderError without spawning agy", async () => {
+  await withBridge((req, res) => {
+    if (req.url === "/api/health") {
+      json(res, 200, { status: "ok" });
+      return;
+    }
+    if (req.url === "/api/agents/authorize") {
+      json(res, 403, { authorized: false, reason: "LOCKED" });
+      return;
+    }
+    json(res, 404, { error: "not found" });
+  }, async () => {
+    const provider = new AgyProvider();
+    assert.equal(provider.kind, "local-cli");
+    await assert.rejects(
+      async () => {
+        for await (const _ of provider.stream({ systemPrompt: "hello" })) {
+          /* should not yield */
+        }
+      },
+      (err) => {
+        assert.equal(err.status, 403);
+        assert.match(err.message, /Sovereign Agent Bridge denied the agy execution lease/i);
+        assert.match(err.message, /LOCKED/);
+        assert.match(err.message, /will not bypass/i);
+        return true;
+      },
+    );
+  });
 });

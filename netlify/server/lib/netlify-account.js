@@ -1,12 +1,14 @@
 /**
  * Link a visitor's Netlify account to this Cove session (read-only).
  *
- * Tokens live in memory for the Cove session only. They are never logged,
- * never written to disk, and `netlify login --check` is never run on the
- * host, so a visitor cannot overwrite the machine's CLI login.
+ * Linked session tokens are stored locally on the host in a gitignored
+ * 0600 JSON file (`logs/cove-account-sessions.json`, or `COVE_ACCOUNT_STORE_PATH`)
+ * so linked sessions survive dev server / function reloads. Tokens are never
+ * written to the browser, application logs, git, the shareable guide, or the
+ * host CLI keychain (`netlify login --check` is never run on the host).
  */
-import { readFileSync } from "node:fs";
-import { mkdir, readFile, rename, writeFile, chmod } from "node:fs/promises";
+import { readFileSync, statSync } from "node:fs";
+import { mkdir, readFile, rename, stat, writeFile, chmod } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { getSessionId, json, text } from "./guards.js";
@@ -43,6 +45,24 @@ const TICKET_TTL_MS = 10 * 60 * 1000;
 
 let store = { links: {}, tickets: {}, oauthStates: {} };
 let storeReady = false;
+let storeStamp = null;
+
+function emptyStore() {
+  return { links: {}, tickets: {}, oauthStates: {} };
+}
+
+function normalizeStore(parsed) {
+  if (!parsed || typeof parsed !== "object") return emptyStore();
+  return {
+    links: parsed.links && typeof parsed.links === "object" ? parsed.links : {},
+    tickets: parsed.tickets && typeof parsed.tickets === "object" ? parsed.tickets : {},
+    oauthStates: parsed.oauthStates && typeof parsed.oauthStates === "object" ? parsed.oauthStates : {},
+  };
+}
+
+function fileStamp(info) {
+  return info ? `${info.mtimeMs}:${info.size}` : null;
+}
 
 function pruneStore(now = Date.now()) {
   for (const [id, ticket] of Object.entries(store.tickets)) {
@@ -54,16 +74,27 @@ function pruneStore(now = Date.now()) {
 }
 
 async function loadStore() {
-  if (storeReady) return store;
+  let info = null;
   try {
-    store = JSON.parse(await readFile(STORE_PATH, "utf8"));
-    if (!store.links || !store.tickets || !store.oauthStates) {
-      store = { links: store.links || {}, tickets: store.tickets || {}, oauthStates: store.oauthStates || {} };
-    }
+    info = await stat(STORE_PATH);
   } catch {
-    store = { links: {}, tickets: {}, oauthStates: {} };
+    info = null;
+  }
+  const stamp = fileStamp(info);
+  if (storeReady && stamp === storeStamp) return store;
+  if (!info) {
+    store = emptyStore();
+    storeStamp = null;
+    storeReady = true;
+    return store;
+  }
+  try {
+    store = normalizeStore(JSON.parse(await readFile(STORE_PATH, "utf8")));
+  } catch {
+    store = emptyStore();
   }
   pruneStore();
+  storeStamp = stamp;
   storeReady = true;
   return store;
 }
@@ -75,6 +106,12 @@ async function saveStore() {
   await writeFile(tmp, JSON.stringify(store), { encoding: "utf8", mode: 0o600 });
   await rename(tmp, STORE_PATH);
   await chmod(STORE_PATH, 0o600);
+  try {
+    storeStamp = fileStamp(await stat(STORE_PATH));
+  } catch {
+    storeStamp = null;
+  }
+  storeReady = true;
 }
 
 function oauthConfigured() {
@@ -199,16 +236,27 @@ async function refreshSites(sessionId, force = false) {
 }
 
 function loadStoreSync() {
-  if (storeReady) return store;
+  let info = null;
   try {
-    store = JSON.parse(readFileSync(STORE_PATH, "utf8"));
-    if (!store.links || !store.tickets || !store.oauthStates) {
-      store = { links: store.links || {}, tickets: store.tickets || {}, oauthStates: store.oauthStates || {} };
-    }
+    info = statSync(STORE_PATH);
   } catch {
-    store = { links: {}, tickets: {}, oauthStates: {} };
+    info = null;
+  }
+  const stamp = fileStamp(info);
+  if (storeReady && stamp === storeStamp) return store;
+  if (!info) {
+    store = emptyStore();
+    storeStamp = null;
+    storeReady = true;
+    return store;
+  }
+  try {
+    store = normalizeStore(JSON.parse(readFileSync(STORE_PATH, "utf8")));
+  } catch {
+    store = emptyStore();
   }
   pruneStore();
+  storeStamp = stamp;
   storeReady = true;
   return store;
 }

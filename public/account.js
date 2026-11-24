@@ -52,13 +52,14 @@
     document.body.classList.toggle("drawer-open", open);
   }
 
-  function openDrawer() {
+  function openDrawer({ error = "" } = {}) {
     window.CoveConversations?.closeDrawer?.();
     if (!els.drawer) return;
     els.drawer.hidden = false;
     els.drawer.classList.add("is-open");
     setBackdrop();
-    refresh();
+    document.getElementById("close-account")?.focus();
+    refresh({ error });
   }
 
   function closeDrawer() {
@@ -185,13 +186,14 @@ netlify login --request "Cove read-only site access" --json</code></pre>
     els.panel?.prepend(host);
   }
 
-  async function refresh() {
+  async function refresh({ error = "" } = {}) {
     try {
       const data = await api("/api/netlify/status");
       render(data);
+      if (error) showError(error);
     } catch (err) {
       if (els.status) els.status.textContent = "unreachable";
-      if (els.panel) els.panel.innerHTML = `<p class="account-error">${escapeHtml(err.message)}</p>`;
+      if (els.panel) els.panel.innerHTML = `<p class="account-error">${escapeHtml(error || err.message)}</p>`;
     }
   }
 
@@ -293,11 +295,11 @@ netlify login --request "Cove read-only site access" --json</code></pre>
     }
   });
 
-  document.getElementById("open-account")?.addEventListener("click", openDrawer);
+  document.getElementById("open-account")?.addEventListener("click", () => openDrawer());
   document.getElementById("close-account")?.addEventListener("click", closeDrawer);
   els.backdrop?.addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeDrawer();
+    if (e.key === "Escape" && els.drawer && !els.drawer.hidden) closeDrawer();
   });
 
   function showAccountTab(name) {
@@ -322,9 +324,8 @@ netlify login --request "Cove read-only site access" --json</code></pre>
     openDrawer();
     history.replaceState({}, "", window.location.pathname);
   } else if (params.get("account") === "error") {
-    openDrawer();
     const reason = params.get("reason") || "oauth-failed";
-    setTimeout(() => showError(`Netlify OAuth did not complete (${reason}).`), 400);
+    openDrawer({ error: `Netlify OAuth did not complete (${reason}).` });
     history.replaceState({}, "", window.location.pathname);
   } else if (params.get("code") && sessionStorage.getItem("cove-openrouter-verifier")) {
     showAccountTab("providers");

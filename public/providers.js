@@ -80,13 +80,23 @@
   function render() {
     if (!panel || !catalog) return;
     const selected = currentId();
+    const bridge = catalog.signalBridge;
+    const bridgeLine = bridge
+      ? bridge.ok
+        ? `Signal Bridge: connected (${bridge.transport || "signal-bridge"})`
+        : `Signal Bridge: ${bridge.transport || "direct-cli-fallback"}`
+      : "";
     const localCards = (catalog.local || []).map((item) => {
       const checked = selected === item.id ? "checked" : "";
+      const bridgeMeta = item.id === "agy" && bridgeLine
+        ? `<span class="provider-meta">${escapeHtml(bridgeLine)}</span>`
+        : "";
       return `<label class="provider-card">
         <input type="radio" name="cove-provider" value="${escapeHtml(item.id)}" ${checked} />
         <span>
           <strong>${escapeHtml(item.label)}</strong>
           <span class="provider-meta">${escapeHtml(item.version || "")}</span>
+          ${bridgeMeta}
           <span class="account-copy">${escapeHtml(item.detail)}</span>
         </span>
       </label>`;

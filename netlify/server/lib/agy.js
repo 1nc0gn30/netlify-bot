@@ -66,6 +66,7 @@ export class AgyProvider {
   constructor() {
     this.id = "agy";
     this.label = "agy (local Gemini CLI)";
+    this.kind = "local-cli";
   }
 
   async available() {
@@ -132,7 +133,16 @@ export class AgyProvider {
       viaBridge = true;
     } else if (!auth.unreachable) {
       await rm(cwd, { recursive: true, force: true });
-      throw new ProviderError(auth.reason || "Sovereign Agent Bridge denied the agy lease.");
+      const detail = auth.reason
+        ? ` (${auth.reason})`
+        : auth.authorized
+          ? " (no lease ID returned)"
+          : "";
+      const status = auth.status === 403 || auth.status === 429 ? auth.status : 503;
+      throw new ProviderError(
+        `Sovereign Agent Bridge denied the agy execution lease${detail}. Cove will not bypass the bridge policy.`,
+        status,
+      );
     }
     const env = viaBridge ? { ...leaseEnv(auth, baseEnv) } : { ...baseEnv };
     // leaseEnv copies process.env; keep the chat process on the tight allowlist.

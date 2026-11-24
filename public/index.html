@@ -124,7 +124,7 @@
             <span><span class="k">Knowledge</span> <span id="status-knowledge">checking…</span></span>
             <span><span class="k">Account</span> <span id="status-account">not linked</span></span>
           </p>
-          <p class="hint" id="job-hint">Cove stays current from netlify.ai and official docs, then only writes verified claims to the shareable guide.</p>
+          <p class="hint" id="job-hint" aria-live="polite">Cove stays current from netlify.ai and official docs, then only writes verified claims to the shareable guide.</p>
         </div>
 
         <div class="hero-panel">
@@ -156,7 +156,7 @@
               <button type="button" data-q="How do I add redirects in netlify.toml, and what should I watch out for?">Redirects in netlify.toml</button>
             </div>
 
-            <ol class="transcript" id="transcript"></ol>
+            <ol class="transcript" id="transcript" aria-live="polite" aria-relevant="additions"></ol>
 
             <form class="composer" id="composer">
               <label class="sr-only" for="prompt">Your question</label>
@@ -197,7 +197,7 @@
     </footer>
 
     <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
-    <aside class="drawer" id="conversations-drawer" hidden aria-labelledby="conversations-title">
+    <aside class="drawer" id="conversations-drawer" role="dialog" aria-modal="true" hidden aria-labelledby="conversations-title">
       <div class="drawer-head">
         <div>
           <p class="eyebrow">Saved locally in this browser</p>
@@ -217,7 +217,7 @@
       <ol class="conversation-list" id="conversation-list"></ol>
     </aside>
 
-    <aside class="drawer" id="account-drawer" hidden aria-labelledby="account-title">
+    <aside class="drawer" id="account-drawer" role="dialog" aria-modal="true" hidden aria-labelledby="account-title">
       <div class="drawer-head">
         <div>
           <p class="eyebrow">Account and providers</p>

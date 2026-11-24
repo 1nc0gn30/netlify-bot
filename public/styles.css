@@ -584,6 +584,10 @@ h1 {
   border-radius: var(--radius-pill);
 }
 
+.composer:focus-within {
+  border-color: var(--color-text);
+}
+
 .composer textarea {
   flex: 1;
   resize: none;
@@ -1160,6 +1164,10 @@ h1 {
   padding: 0.55rem 0.9rem;
   color: var(--color-text);
   outline: none;
+}
+
+.token-form input:focus {
+  border-color: var(--color-text);
 }
 
 .account-error {

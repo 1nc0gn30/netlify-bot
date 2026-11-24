@@ -148,12 +148,30 @@ function renderTagFilters() {
   }).join("");
 }
 
+function clearCurrent() {
+  convoState.currentId = null;
+  persistStore();
+  renderTagFilters();
+  renderConversationList();
+}
+
 function renderConversationList() {
   const root = document.getElementById("conversation-list");
   const empty = document.getElementById("conversation-empty");
+  const exportOne = document.getElementById("export-conversation");
+  const exportAllBtn = document.getElementById("export-all-conversations");
   if (!root) return;
   const items = filteredItems();
-  if (empty) empty.hidden = items.length > 0;
+  const hasAny = convoState.items.length > 0;
+  const activeConvo = currentConvo();
+  if (exportOne) exportOne.disabled = !activeConvo || !(activeConvo.messages || []).length;
+  if (exportAllBtn) exportAllBtn.disabled = !hasAny;
+  if (empty) {
+    empty.hidden = items.length > 0;
+    empty.textContent = hasAny
+      ? "No conversations match your search or tag filter."
+      : "No conversations yet. Ask Cove something and it will show up here, tagged automatically.";
+  }
   root.innerHTML = items.map((item) => {
     const active = item.id === convoState.currentId;
     const safeId = escapeText(item.id);
@@ -299,7 +317,8 @@ function bindDrawer() {
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeDrawer();
+    const drawer = document.getElementById("conversations-drawer");
+    if (e.key === "Escape" && drawer && !drawer.hidden) closeDrawer();
   });
 }
 
@@ -308,6 +327,7 @@ window.CoveConversations = {
   loadStore,
   current: currentConvo,
   create: createConversation,
+  clearCurrent,
   saveMessages,
   analyzeCurrent,
   openDrawer,

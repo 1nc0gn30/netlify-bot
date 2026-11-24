@@ -80,7 +80,7 @@ Use Netlify CLI 27.20.0 or later (27.17.0 is the minimum for Netlify Server). No
 
 ## Linking a Netlify account
 
-Cove can answer questions about a visitor's sites and deploy status after they link a Netlify account. Access is read-only. Tokens are kept in memory for that Cove session only — never written to disk, the browser, logs, or the shareable guide. Cove never runs `netlify login --check` on the host, so a visitor cannot overwrite the machine's CLI login.
+Cove can answer questions about a visitor's sites and deploy status after they link a Netlify account. Access is read-only. Linked session tokens are stored locally on the host in a gitignored `0600` file (`logs/cove-account-sessions.json`, configurable via `COVE_ACCOUNT_STORE_PATH`) so linked sessions survive dev server restarts, while never being written to the browser, application logs, git, the shareable guide, or the host CLI keychain. `GET /api/netlify/status` is scoped to the `x-cove-session` header (requests without a linked session header report `linked: false`). Cove never runs `netlify login --check` on the host, so a visitor cannot overwrite the machine's CLI login.
 
 Three ways to link:
 

@@ -59,7 +59,7 @@ function renderMarkdown(raw) {
   text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   text = text.replace(/(^|\n)- (.+)/g, "$1<li>$2</li>");
   text = text.replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`);
-  text = text.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" rel="noopener" target="_blank">$1</a>');
+  text = text.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" rel="noopener noreferrer" target="_blank">$1</a>');
   text = text
     .split(/\n{2,}/)
     .map((block) => {
@@ -276,6 +276,9 @@ async function sendQuestion(text) {
       window.CoveConversations.analyzeCurrent();
     }
   } catch (err) {
+    if (!reply.trim() && state.messages.length && state.messages[state.messages.length - 1]?.role === "user") {
+      state.messages.pop();
+    }
     assistant.body.innerHTML = renderMarkdown(`I hit a snag: ${err.message}`);
     setState("error");
   } finally {
@@ -362,7 +365,8 @@ function startNewConversation() {
   document.querySelector(".chat-card")?.classList.remove("is-chatting");
   els.transcript.innerHTML = "";
   addBubble("assistant", WELCOME);
-  window.CoveConversations?.create([]);
+  if (window.CoveConversations?.clearCurrent) window.CoveConversations.clearCurrent();
+  else window.CoveConversations?.create([]);
 }
 
 function loadConversation(item) {

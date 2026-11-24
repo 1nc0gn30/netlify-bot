@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import vm from "node:vm";
@@ -421,9 +421,49 @@ test("netlify account: CLI ticket flow, Web OAuth flow, token flow, persistence,
     ).json();
     assert.equal(linkedStatus.linked, true);
     assert.equal(linkedStatus.method, "oauth");
+
+    // External update to store file (e.g., another worker or restart) is reloaded automatically
+    const externalSessionId = "test_external_reload_99";
+    const diskStore = JSON.parse(readFileSync(tempStorePath, "utf8"));
+    diskStore.links[externalSessionId] = {
+      token: "nfp_test_external_token_1234567890",
+      method: "personal-token",
+      user: { id: "u2", name: "Reloaded User", email: "reload@example.com" },
+      sites: [{ id: "s2", name: "reloaded-site", url: "https://reloaded.netlify.app", deploy: { state: "ready" } }],
+      sitesAt: Date.now(),
+      linkedAt: Date.now(),
+    };
+    writeFileSync(tempStorePath, JSON.stringify(diskStore), { encoding: "utf8", mode: 0o600 });
+
+    const reloadedStatus = await (
+      await handleRequest(
+        new Request("http://127.0.0.1:8971/api/netlify/status", {
+          headers: { "x-cove-session": externalSessionId },
+        }),
+      )
+    ).json();
+    assert.equal(reloadedStatus.linked, true);
+    assert.equal(reloadedStatus.user.name, "Reloaded User");
+    assert.equal(reloadedStatus.sites[0].name, "reloaded-site");
+    assert.match(accountContextText(externalSessionId), /reloaded-site/);
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test("status and providers APIs expose bridge metadata and agy local-cli kind", async () => {
+  const statusRes = await handleRequest(new Request("http://127.0.0.1:8971/api/status"));
+  assert.equal(statusRes.status, 200);
+  const statusData = await statusRes.json();
+  assert.ok(statusData.provider && "bridge" in statusData.provider);
+  const agyEntry = statusData.providers.find((p) => p.id === "agy");
+  assert.equal(agyEntry?.kind, "local-cli");
+
+  const providersRes = await handleRequest(new Request("http://127.0.0.1:8971/api/providers"));
+  assert.equal(providersRes.status, 200);
+  const providersData = await providersRes.json();
+  assert.ok(providersData.signalBridge && typeof providersData.signalBridge.ok === "boolean");
+  assert.ok(["signal-bridge", "direct-cli-fallback"].includes(providersData.signalBridge.transport));
 });
 
 test("frontend scripts: valid JS syntax and key hardening invariants", () => {
