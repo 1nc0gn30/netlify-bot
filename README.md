@@ -2,7 +2,7 @@
 
 Fan-made community helper for the Netlify CLI and platform. **Not an official Netlify product and not affiliated with Netlify.**
 
-Cove is a chat guide with an original mascot named Buoy. It stays current by fetching [netlify.ai](https://netlify.ai) and official docs, then research-tests CLI facts with read-only help and version commands. Verified claims are written to a shareable [`/netlify-ai.md`](/netlify-ai.md).
+Cove is a chat guide with an original mascot named Buoy. It stays current by fetching [netlify.ai](https://netlify.ai) and official docs, then research-tests CLI facts with read-only help and version commands. Verified claims are written to [`knowledge/netlify-ai.md`](knowledge/netlify-ai.md) and served at `/netlify-ai.md`.
 
 ## How it runs
 
