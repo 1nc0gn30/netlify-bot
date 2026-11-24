@@ -149,9 +149,11 @@ function excerpt(output, needle) {
   return text.slice(Math.max(0, idx - 20), idx + 80).replace(/\s+/g, " ").trim();
 }
 
-async function collectAgyProposals({ knowledge, tests, signal }) {
-  const provider = getProvider();
-  const ready = await provider.available();
+async function collectAgyProposals({ knowledge, tests, signal, localAccess = false }) {
+  if (!localAccess) return [];
+  const provider = getProvider(undefined, { localAccess });
+  if (!provider) return [];
+  const ready = await provider.available({ localAccess });
   if (!ready.ok) return [];
   const prompt = `You are helping maintain a community Netlify guide. Propose additional CLI facts that can be verified with read-only help output.
 
@@ -176,6 +178,7 @@ ${knowledge.text.slice(0, 12000)}
       systemPrompt: prompt,
       signal,
       timeoutMs: 90_000,
+      localAccess,
     })) {
       raw += chunk;
     }
@@ -194,7 +197,7 @@ ${knowledge.text.slice(0, 12000)}
   }
 }
 
-export async function runResearch({ signal, includeModelProposals = true } = {}) {
+export async function runResearch({ signal, includeModelProposals = false, localAccess = false } = {}) {
   const official = await refreshOfficialSources({ reason: "research" });
   const cli = await getCliVersion();
   const knowledge = await buildPromptKnowledge();
@@ -213,8 +216,8 @@ export async function runResearch({ signal, includeModelProposals = true } = {})
     });
   }
 
-  if (includeModelProposals) {
-    const proposals = await collectAgyProposals({ knowledge, tests, signal });
+  if (includeModelProposals && localAccess) {
+    const proposals = await collectAgyProposals({ knowledge, tests, signal, localAccess });
     for (const proposal of proposals) {
       const result = await runSafeNetlify(proposal.command);
       const needle = proposal.needle || "";

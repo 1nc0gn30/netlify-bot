@@ -185,11 +185,14 @@ test("AgyProvider: hard lease denial throws clear 403 ProviderError without spaw
     }
     json(res, 404, { error: "not found" });
   }, async () => {
+    const prev = process.env.COVE_LOCAL_AGENTS;
+    process.env.COVE_LOCAL_AGENTS = "1";
     const provider = new AgyProvider();
     assert.equal(provider.kind, "local-cli");
+    try {
     await assert.rejects(
       async () => {
-        for await (const _ of provider.stream({ systemPrompt: "hello" })) {
+        for await (const _ of provider.stream({ systemPrompt: "hello", localAccess: true })) {
           /* should not yield */
         }
       },
@@ -201,5 +204,9 @@ test("AgyProvider: hard lease denial throws clear 403 ProviderError without spaw
         return true;
       },
     );
+    } finally {
+      if (prev == null) delete process.env.COVE_LOCAL_AGENTS;
+      else process.env.COVE_LOCAL_AGENTS = prev;
+    }
   });
 });

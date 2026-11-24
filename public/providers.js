@@ -26,8 +26,19 @@
     sessionStorage.setItem(KEYS, JSON.stringify(map));
   }
 
+  function isKnownProvider(id) {
+    if (!id || !catalog) return false;
+    return (catalog.local || []).some((item) => item.id === id)
+      || (catalog.cloud || []).some((item) => item.id === id);
+  }
+
   function currentId() {
-    return localStorage.getItem(PICK) || "agy";
+    const stored = localStorage.getItem(PICK);
+    if (isKnownProvider(stored)) return stored;
+    if (catalog?.defaultId && isKnownProvider(catalog.defaultId)) return catalog.defaultId;
+    if (catalog?.local?.[0]?.id) return catalog.local[0].id;
+    if (catalog?.cloud?.[0]?.id) return catalog.cloud[0].id;
+    return stored || "";
   }
 
   function setCurrentId(id) {
@@ -100,7 +111,9 @@
           <span class="account-copy">${escapeHtml(item.detail)}</span>
         </span>
       </label>`;
-    }).join("") || `<p class="account-copy">No runnable local CLIs were detected on this host.</p>`;
+    }).join("") || `<p class="account-copy">${catalog.localAgents
+      ? "No runnable local CLIs were detected on this host."
+      : "Local agents (agy, Hermes Agent, Muse, Grok CLI) only run when you use Cove on this machine. On a public or hosted URL, paste your own API key or sign in with OpenRouter."}</p>`;
 
     const cloudCards = (catalog.cloud || []).map((item) => {
       const checked = selected === item.id ? "checked" : "";
@@ -138,7 +151,7 @@
 
     panel.innerHTML = `
       ${errorHtml}
-      <p class="account-lead">Choose who answers. Local CLIs run on the machine hosting this session, sandboxed like agy. Cloud providers use a key kept in this browser tab only — never written to disk or application logs. Cove does not show a sign-in button unless that provider actually offers third-party OAuth for model inference.</p>
+      <p class="account-lead">Choose who answers. Local CLIs, when offered, run only on this machine for local requests. On a public or tunneled URL they are disabled — use an API key kept in this browser tab only, or sign in with OpenRouter. Keys are never written to disk or application logs. Cove does not show a sign-in button unless that provider actually offers third-party OAuth for model inference.</p>
       <section class="account-card">
         <p class="eyebrow">This machine</p>
         <h3>Local CLIs</h3>
@@ -277,7 +290,11 @@
       const res = await fetch("/api/providers", { headers: { "x-cove-session": sessionId } });
       if (!res.ok) throw new Error(`Could not load providers (${res.status})`);
       catalog = await res.json();
-      if (!localStorage.getItem(PICK) && catalog.defaultId) setCurrentId(catalog.defaultId);
+      if (catalog.defaultId && !isKnownProvider(localStorage.getItem(PICK))) setCurrentId(catalog.defaultId);
+      else if (localStorage.getItem(PICK) && !isKnownProvider(localStorage.getItem(PICK))) {
+        /* stale "agy" pick from a previous local session must not stick on a public URL */
+        localStorage.removeItem(PICK);
+      }
       await finishOpenRouter();
       render();
     } catch (err) {

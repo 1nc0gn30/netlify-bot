@@ -451,19 +451,28 @@ test("netlify account: CLI ticket flow, Web OAuth flow, token flow, persistence,
   }
 });
 
-test("status and providers APIs expose bridge metadata and agy local-cli kind", async () => {
-  const statusRes = await handleRequest(new Request("http://127.0.0.1:8971/api/status"));
-  assert.equal(statusRes.status, 200);
-  const statusData = await statusRes.json();
-  assert.ok(statusData.provider && "bridge" in statusData.provider);
-  const agyEntry = statusData.providers.find((p) => p.id === "agy");
-  assert.equal(agyEntry?.kind, "local-cli");
+test("status and providers APIs hide local agents when COVE_LOCAL_AGENTS is off", async () => {
+  const prev = process.env.COVE_LOCAL_AGENTS;
+  delete process.env.COVE_LOCAL_AGENTS;
+  try {
+    const statusRes = await handleRequest(new Request("http://127.0.0.1:8971/api/status"));
+    assert.equal(statusRes.status, 200);
+    const statusData = await statusRes.json();
+    assert.equal(statusData.localAgents, false);
+    assert.equal(statusData.provider?.available, false);
+    assert.ok(!(statusData.providers || []).some((p) => p.id === "agy"));
 
-  const providersRes = await handleRequest(new Request("http://127.0.0.1:8971/api/providers"));
-  assert.equal(providersRes.status, 200);
-  const providersData = await providersRes.json();
-  assert.ok(providersData.signalBridge && typeof providersData.signalBridge.ok === "boolean");
-  assert.ok(["signal-bridge", "direct-cli-fallback"].includes(providersData.signalBridge.transport));
+    const providersRes = await handleRequest(new Request("http://127.0.0.1:8971/api/providers"));
+    assert.equal(providersRes.status, 200);
+    const providersData = await providersRes.json();
+    assert.deepEqual(providersData.local, []);
+    assert.equal(providersData.localAgents, false);
+    assert.equal(providersData.signalBridge?.transport, "disabled");
+    assert.equal(providersData.signalBridge?.ok, false);
+  } finally {
+    if (prev == null) delete process.env.COVE_LOCAL_AGENTS;
+    else process.env.COVE_LOCAL_AGENTS = prev;
+  }
 });
 
 test("frontend scripts: valid JS syntax and key hardening invariants", () => {

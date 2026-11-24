@@ -10,6 +10,7 @@ import { tmpdir, homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { ProviderError } from "./provider-error.js";
 import { LIMITS } from "./guards.js";
+import { localAgentsOptedIn } from "./local-access.js";
 
 const HOME_BIN = join(homedir(), ".local/bin");
 
@@ -141,6 +142,7 @@ async function probeRecipe(recipe) {
 }
 
 export async function detectLocalClis({ force = false } = {}) {
+  if (!localAgentsOptedIn()) return [];
   if (!force && cachedDetection && Date.now() - cachedAt < DETECT_TTL_MS) {
     return cachedDetection;
   }
@@ -157,13 +159,19 @@ export function createLocalCliProvider(id) {
     id: recipe.id,
     label: recipe.label,
     kind: "local-cli",
-    async available() {
+    async available({ localAccess = false } = {}) {
+      if (!localAgentsOptedIn() || !localAccess) {
+        return {
+          ok: false,
+          reason: `${recipe.label} is only available when Cove is used on this machine with COVE_LOCAL_AGENTS enabled.`,
+        };
+      }
       const [found] = (await detectLocalClis()).filter((item) => item.id === recipe.id);
       if (!found) return { ok: false, reason: `${recipe.label} is not available as a runnable CLI on this host.` };
       return { ok: true, bin: found.bin };
     },
-    async *stream({ systemPrompt, signal, timeoutMs }) {
-      const ready = await this.available();
+    async *stream({ systemPrompt, signal, timeoutMs, localAccess = false }) {
+      const ready = await this.available({ localAccess });
       if (!ready.ok) throw new ProviderError(ready.reason);
       const cwd = await mkdtemp(join(tmpdir(), `cove-${recipe.id}-`));
       const prompt = String(systemPrompt || "");

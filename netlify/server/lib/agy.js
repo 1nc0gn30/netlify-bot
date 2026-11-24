@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { ProviderError } from "./provider-error.js";
 import { LIMITS } from "./guards.js";
 import { authorizeTool, leaseEnv, probeBridge, releaseLease } from "./signal-bridge.js";
+import { localAgentsOptedIn } from "./local-access.js";
 
 function resolveAgy() {
   if (process.env.AGY_PATH && existsSync(process.env.AGY_PATH)) return process.env.AGY_PATH;
@@ -69,7 +70,13 @@ export class AgyProvider {
     this.kind = "local-cli";
   }
 
-  async available() {
+  async available({ localAccess = false } = {}) {
+    if (!localAgentsOptedIn() || !localAccess) {
+      return {
+        ok: false,
+        reason: "agy is only available when Cove is used on this machine with COVE_LOCAL_AGENTS enabled.",
+      };
+    }
     const bin = resolveAgy();
     if (bin !== "agy" && !existsSync(bin)) {
       return { ok: false, reason: "agy was not found on this machine." };
@@ -87,8 +94,8 @@ export class AgyProvider {
     };
   }
 
-  async *stream({ systemPrompt, signal, timeoutMs }) {
-    const ready = await this.available();
+  async *stream({ systemPrompt, signal, timeoutMs, localAccess = false }) {
+    const ready = await this.available({ localAccess });
     if (!ready.ok) throw new ProviderError(ready.reason);
     const bin = ready.bin || resolveAgy();
     const cwd = await mkdtemp(join(tmpdir(), "cove-agy-"));

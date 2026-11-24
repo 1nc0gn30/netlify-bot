@@ -7,6 +7,13 @@ import { runResearch } from "./research.js";
 import { getCliVersion } from "./cli-test.js";
 import { keywordAnalyze, analyzePrompt, parseAnalyzeReply } from "./tags.js";
 import { handleNetlifyAccount, accountContextText } from "./netlify-account.js";
+import { detectLocalClis } from "./local-clis.js";
+import {
+  inspectLocalAccess,
+  isLocalProviderId,
+  localAgentsForbiddenError,
+  localAgentsOptedIn,
+} from "./local-access.js";
 
 registerProvider(new AgyProvider());
 registerProvider(new EchoProvider());
@@ -15,6 +22,7 @@ let startedAt = null;
 let refreshTimer = null;
 let researchInFlight = null;
 let booting = null;
+let startupLocalAgents = { enabled: false, agy: null, local: [] };
 
 export async function boot() {
   if (startedAt) return startedAt;
@@ -31,6 +39,19 @@ export async function boot() {
         ensureFresh({ reason: "schedule" }).catch((err) => console.error("scheduled refresh failed", err));
       }, 6 * 60 * 60 * 1000);
       if (refreshTimer.unref) refreshTimer.unref();
+    }
+    if (localAgentsOptedIn()) {
+      try {
+        const agy = new AgyProvider();
+        const ready = await agy.available({ localAccess: true });
+        const local = await detectLocalClis({ force: true });
+        startupLocalAgents = { enabled: true, agy: { ok: !!ready.ok, reason: ready.reason || null }, local };
+      } catch (err) {
+        startupLocalAgents = { enabled: true, agy: { ok: false, reason: err.message }, local: [] };
+        console.error("local agent startup probe failed", err);
+      }
+    } else {
+      startupLocalAgents = { enabled: false, agy: null, local: [] };
     }
     return startedAt;
   })();
@@ -79,15 +100,36 @@ async function prepareChat(req) {
   assertRateLimit(sessionId);
   const payload = await req.json().catch(() => null);
   const messages = assertInput(payload);
-  const provider = getProvider(payload?.provider);
+  const access = inspectLocalAccess(req);
+  const requested = payload?.provider;
+  if (isLocalProviderId(requested) && !access.allowed) {
+    throw localAgentsForbiddenError(access);
+  }
+  const provider = getProvider(requested, { localAccess: access.allowed });
+  if (!provider) {
+    const error = new Error("Choose a cloud provider and paste your own API key, or sign in with OpenRouter.");
+    error.status = 403;
+    error.payload = {
+      error: "No model provider is available for this request.",
+      hint: "Local agents are disabled for public and tunneled requests. Paste your own API key or sign in with OpenRouter.",
+      code: "local-agents-forbidden",
+    };
+    throw error;
+  }
+  if (isLocalProviderId(provider.id) && !access.allowed) {
+    throw localAgentsForbiddenError(access);
+  }
   const apiKey = takeApiKey(payload);
-  const ready = await provider.available({ apiKey });
+  const ready = await provider.available({ apiKey, localAccess: access.allowed });
   if (!ready.ok) {
     const error = new Error(ready.reason || "The model provider is not available.");
-    error.status = 503;
+    error.status = isLocalProviderId(provider.id) ? 403 : 503;
     error.payload = {
       error: ready.reason || "The model provider is not available.",
-      hint: "Cove is powered by agy on the machine that runs this dev session. It is not available in a production deploy unless a hosted provider is configured.",
+      hint: isLocalProviderId(provider.id)
+        ? "Paste your own API key or sign in with OpenRouter. Cove will not run local agents for this request."
+        : "Paste your own API key for this provider, or sign in with OpenRouter.",
+      code: isLocalProviderId(provider.id) ? "local-agents-forbidden" : undefined,
     };
     throw error;
   }
@@ -98,12 +140,17 @@ async function prepareChat(req) {
     meta: knowledge,
     accountContext: accountContextText(sessionId),
   });
-  return { messages, provider, knowledge, systemPrompt, apiKey };
+  return { messages, provider, knowledge, systemPrompt, apiKey, localAccess: access.allowed };
 }
 
-async function collectReply({ messages, systemPrompt, signal, provider, apiKey }) {
+async function collectReply({ messages, systemPrompt, signal, provider, apiKey, localAccess = false }) {
   let reply = "";
-  const active = provider || getProvider();
+  const active = provider || getProvider(undefined, { localAccess });
+  if (!active) {
+    const error = new Error("No model provider is available for this request.");
+    error.status = 403;
+    throw error;
+  }
   await withConcurrency(async () => {
     for await (const chunk of active.stream({
       messages,
@@ -111,6 +158,7 @@ async function collectReply({ messages, systemPrompt, signal, provider, apiKey }
       apiKey,
       signal,
       timeoutMs: LIMITS.chatTimeoutMs,
+      localAccess,
     })) {
       reply += chunk;
     }
@@ -145,6 +193,7 @@ async function handleChatStream(req) {
             apiKey: prepared.apiKey,
             signal: abort.signal,
             timeoutMs: LIMITS.chatTimeoutMs,
+            localAccess: prepared.localAccess,
           })) {
             reply += chunk;
             enqueue({ type: "token", text: chunk });
@@ -187,6 +236,7 @@ async function handleChatJson(req) {
       signal: abort.signal,
       provider: prepared.provider,
       apiKey: prepared.apiKey,
+      localAccess: prepared.localAccess,
     });
     if (!String(reply).trim()) {
       const error = new Error("The guide returned an empty answer.");
@@ -205,27 +255,43 @@ async function handleChatJson(req) {
   }
 }
 
-async function statusPayload() {
-  const provider = getProvider();
-  const ready = await provider.available();
-  const cli = await getCliVersion().catch(() => ({ ok: false, version: null, raw: "" }));
+async function statusPayload(req) {
+  const access = inspectLocalAccess(req);
+  const provider = getProvider(undefined, { localAccess: access.allowed });
+  const ready = provider
+    ? await provider.available({ localAccess: access.allowed })
+    : { ok: false, reason: "Choose a cloud provider and paste your own API key, or sign in with OpenRouter." };
+  const cli = access.allowed
+    ? await getCliVersion().catch(() => ({ ok: false, version: null, raw: "" }))
+    : { ok: false, version: null, raw: "" };
   const knowledge = knowledgeStatus() || (await ensureFresh({ reason: "status", maxAgeMs: 7 * 24 * 60 * 60 * 1000 }).catch(() => null));
   const guide = await readCommunityGuide();
   return {
     ok: true,
     name: "Cove",
     disclaimer: "Fan-made community helper. Not affiliated with Netlify.",
-    laptopBound: true,
-    note: "Answers are generated by the local provider on the machine running this dev session. A production deploy will need a hosted provider.",
+    laptopBound: access.allowed,
+    localAgents: access.allowed,
+    note: access.allowed
+      ? "Local agents can answer on this machine because this request is local and COVE_LOCAL_AGENTS is enabled."
+      : "Local laptop agents are disabled for this request. Paste your own API key or sign in with OpenRouter.",
     startedAt,
-    provider: {
-      id: provider.id,
-      label: provider.label,
-      available: ready.ok,
-      reason: ready.reason || null,
-      bridge: ready.bridge || null,
-    },
-    providers: listProviders(),
+    provider: provider
+      ? {
+          id: provider.id,
+          label: provider.label,
+          available: ready.ok,
+          reason: ready.reason || null,
+          bridge: access.allowed ? ready.bridge || null : null,
+        }
+      : {
+          id: null,
+          label: null,
+          available: false,
+          reason: ready.reason,
+          bridge: null,
+        },
+    providers: listProviders({ localAccess: access.allowed }),
     cli: { version: cli.version, ok: cli.ok, raw: (cli.raw || "").split("\n")[0] },
     knowledge: {
       refreshedAt: knowledge?.at || null,
@@ -236,6 +302,7 @@ async function statusPayload() {
     },
   };
 }
+
 
 
 const analyzeBuckets = new Map();
@@ -266,8 +333,12 @@ async function handleAnalyze(req) {
   } catch {
     return json({ ok: true, ...fallback, source: "keywords" });
   }
-  const provider = getProvider();
-  const ready = await provider.available();
+  const access = inspectLocalAccess(req);
+  const provider = getProvider(payload?.provider, { localAccess: access.allowed });
+  if (!provider || (isLocalProviderId(provider.id) && !access.allowed)) {
+    return json({ ok: true, ...fallback, source: "keywords" });
+  }
+  const ready = await provider.available({ localAccess: access.allowed });
   if (!ready.ok) return json({ ok: true, ...fallback });
   const { systemPrompt, userContent } = analyzePrompt(messages);
   const combinedPrompt = `${systemPrompt}\n\nConversation:\n${userContent}`;
@@ -280,6 +351,7 @@ async function handleAnalyze(req) {
       systemPrompt: combinedPrompt,
       signal: abort.signal,
       timeoutMs: 25_000,
+      localAccess: access.allowed,
     })) {
       reply += chunk;
     }
@@ -306,19 +378,30 @@ export async function handleRequest(req) {
 
   try {
     if (pathname === "/api/health" && req.method === "GET") {
-      return json({ ok: true, name: "Cove", startedAt });
+      const access = inspectLocalAccess(req);
+      return json({
+        ok: true,
+        name: "Cove",
+        startedAt,
+        localAgentsOptedIn: localAgentsOptedIn(),
+        localAccessAllowed: access.allowed,
+        localAccessReasons: access.allowed ? [] : access.reasons,
+      });
     }
     if (pathname === "/api/status" && req.method === "GET") {
-      return json(await statusPayload());
+      return json(await statusPayload(req));
     }
     if (pathname === "/api/providers" && req.method === "GET") {
-      return json(await providerCatalog());
+      const access = inspectLocalAccess(req);
+      return json(await providerCatalog({ localAccess: access.allowed }));
     }
     if (pathname === "/api/chat" && req.method === "POST") {
       if (wantsStream(req)) return await handleChatStream(req);
       return await handleChatJson(req);
     }
     if (pathname === "/api/knowledge/refresh" && req.method === "POST") {
+      const access = inspectLocalAccess(req);
+      if (!access.allowed) throw localAgentsForbiddenError(access);
       const sessionId = getSessionId(req);
       assertRateLimit(sessionId);
       const result = await refreshOfficialSources({ reason: "manual" });
@@ -332,12 +415,14 @@ export async function handleRequest(req) {
       if (account) return account;
     }
     if (pathname === "/api/research" && req.method === "POST") {
+      const access = inspectLocalAccess(req);
+      if (!access.allowed) throw localAgentsForbiddenError(access);
       const sessionId = getSessionId(req);
       assertRateLimit(sessionId);
       if (researchInFlight) {
         return json({ ok: false, error: "A research job is already running." }, 409);
       }
-      researchInFlight = runResearch({ includeModelProposals: true }).finally(() => {
+      researchInFlight = runResearch({ includeModelProposals: access.allowed, localAccess: access.allowed }).finally(() => {
         researchInFlight = null;
       });
       const result = await researchInFlight;

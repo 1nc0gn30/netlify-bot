@@ -14,11 +14,15 @@ This is not a [Preview Server](https://docs.netlify.com/manage/preview-servers/o
 
 ## Powered by agy, on this machine only
 
-The default model provider calls the local `agy` CLI in non-interactive `--print` mode, in a temporary directory, with `--sandbox` and a timeout. User input is never passed to a shell.
+Local agents (`agy`, Hermes Agent, Muse, Grok CLI, and the Signal Bridge path) are **off by default**. They run only when all of these are true:
 
-When the Zoth Sovereign Agent Signal Bridge is running at `http://127.0.0.1:8102` (or `ZOTH_BRIDGE_URL`), Cove requests an `agy` execution lease from `/api/agents/authorize` before spawning the CLI, then releases it when the reply finishes. If the bridge is unreachable, Cove falls back to the same direct `agy` spawn. If the bridge is up and denies the lease, Cove does not bypass it. `/api/status` and `/api/providers` report which path is in use. This is the local agent mesh bridge, not the Signal Messenger dispatcher on port 8768.
+- Cove is started with `COVE_LOCAL_AGENTS=1` (never set this in `netlify.toml` or a production deploy)
+- The request is genuinely local: `Host` is `localhost` / `127.0.0.1` / `[::1]` on the dev port, with no `x-forwarded-*` / `x-nf-*` headers, and `Origin` / `Referer` (if present) also on localhost
+- The request is not coming through a `*.netlify.live` or `*.netlify.app` tunnel or site
 
-**This only works while this laptop is running the dev session.** A production deploy on Netlify will not have `agy`. Swap in a hosted provider when you are ready to deploy (see below).
+Loopback IP alone is not enough, because a `netlify dev --live` tunnel also arrives from `::1`. If those checks fail, the server refuses to run or even list local agents. Visitors must paste their own API key (kept in the tab only) or sign in with OpenRouter. There is no shared server key and no fallback that spends the host's CLI quota.
+
+When local agents *are* allowed, the default provider can call `agy` in non-interactive `--print` mode, in a temporary directory, with `--sandbox` and a timeout. User input is never passed to a shell. If the Zoth Sovereign Agent Signal Bridge is running at `http://127.0.0.1:8102` (or `ZOTH_BRIDGE_URL`), Cove requests an `agy` lease, then releases it when the reply finishes. If the bridge is unreachable, Cove falls back to the same direct `agy` spawn; if the bridge denies the lease, Cove does not bypass it.
 
 ## Scripts
 
@@ -52,6 +56,7 @@ Providers live in `netlify/server/lib/providers.js`. Set `COVE_PROVIDER=agy` (de
 - `COVE_AGY_MODEL` — model id (`agy models` to list)
 - `COVE_AGY_EFFORT` — `low` / `medium` / `high` / …
 - `ZOTH_BRIDGE_URL` — Sovereign Agent Signal Bridge base URL (default `http://127.0.0.1:8102`)
+- `COVE_LOCAL_AGENTS=1` — opt in to local agents for genuine localhost requests only (off by default)
 
 To add a hosted provider later, implement `available()` and `stream()`, then `registerProvider(...)`.
 
@@ -63,6 +68,7 @@ To add a hosted provider later, implement `available()` and `stream()`, then `re
 
 - Per-session rate limit and input length cap
 - No shell execution of user input
+- Local agents are refused unless `COVE_LOCAL_AGENTS=1` and the request is a genuine localhost request (Host, port, no forwarding headers, localhost Origin/Referer)
 - `agy` runs in a throwaway working directory
 - Timeouts on chat, research, and fetches
 - CLI tests are allowlisted and run with `execFile`, not a shell

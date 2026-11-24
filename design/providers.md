@@ -35,3 +35,9 @@ Cloud models can be overridden with `COVE_OPENROUTER_MODEL`, `COVE_OPENAI_MODEL`
 On a ZothOS machine, Cove prefers to run `agy` through the Sovereign Agent Signal Bridge at `http://127.0.0.1:8102`. The flow is `POST /api/agents/authorize` → spawn `agy --print --sandbox` with the lease in the environment → `POST /api/agents/release`. Safety limits are unchanged: rate limit, input cap, concurrency 2, throwaway cwd, argv spawn with no shell.
 
 If the bridge is down, Cove uses the direct CLI path. If the bridge is up and the gatekeeper denies the lease, Cove returns that error instead of bypassing policy. The Signal Messenger dispatcher (`zoth-signal-bridge` on `127.0.0.1:8768`) is a separate phone relay and is not used for Cove chat.
+
+## Local agents are fail-closed
+
+`agy`, Hermes Agent, Muse, Grok CLI, and the Signal Bridge path are not offered and cannot be executed unless the server process has `COVE_LOCAL_AGENTS=1` **and** the request is a genuine localhost request: `Host` is `localhost` / `127.0.0.1` / `[::1]` with the expected port, there are no `x-forwarded-for`, `x-forwarded-host`, or `x-nf-*` headers, and `Origin` / `Referer` (if sent) are localhost. A `*.netlify.live` tunnel is refused even when the TCP peer is loopback. This is enforced in `netlify/server/lib/local-access.js` for both the Netlify Function and Netlify Server entry points. The UI hiding local cards is not the guard.
+
+When that gate fails, visitors use a key they paste (session-only) or OpenRouter PKCE. There is no shared server API key and no host-CLI fallback.
