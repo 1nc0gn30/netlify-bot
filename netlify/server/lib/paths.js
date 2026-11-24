@@ -5,16 +5,33 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 
 export function findProjectRoot() {
-  let dir = here;
-  for (let i = 0; i < 8; i += 1) {
-    if (existsSync(join(dir, "netlify.toml")) && existsSync(join(dir, "public"))) {
-      return dir;
+  const starts = [here, process.cwd()];
+  for (const start of starts) {
+    let dir = start;
+    for (let i = 0; i < 8; i += 1) {
+      if (existsSync(join(dir, "knowledge", "netlify-ai.md"))) {
+        return dir;
+      }
+      if (existsSync(join(dir, "netlify.toml")) && existsSync(join(dir, "public"))) {
+        return dir;
+      }
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
     }
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
   }
-  return join(here, "../../..");
+  for (const start of starts) {
+    let dir = start;
+    for (let i = 0; i < 8; i += 1) {
+      if (existsSync(join(dir, "knowledge"))) {
+        return dir;
+      }
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return process.cwd();
 }
 
 export const projectRoot = findProjectRoot();
