@@ -7,14 +7,124 @@
  * written to the browser, application logs, git, the shareable guide, or the
  * host CLI keychain (`netlify login --check` is never run on the host).
  */
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { mkdir, readFile, rename, stat, writeFile, chmod } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { getSessionId, json, text } from "./guards.js";
 import { projectRoot } from "./paths.js";
 
-const STORE_PATH = process.env.COVE_ACCOUNT_STORE_PATH || path.join(projectRoot, "logs/cove-account-sessions.json");
+const DEFAULT_STORE_PATH = path.join(projectRoot, "logs/cove-account-sessions.json");
+const TMP_STORE_PATH = path.join(os.tmpdir(), "cove-account-sessions.json");
+let activeStorePath = process.env.COVE_ACCOUNT_STORE_PATH || DEFAULT_STORE_PATH;
+const COOKIE_NAME = "cove_nf_link";
+const EPHEMERAL_FALLBACK_KEY = randomBytes(32);
+
+function cookieSecretMaterial() {
+  const raw = process.env.COVE_SESSION_SECRET || process.env.NETLIFY_OAUTH_CLIENT_SECRET || "";
+  if (raw) return createHash("sha256").update(`cove-nf-link:${raw}`).digest();
+  return EPHEMERAL_FALLBACK_KEY;
+}
+
+function signState(payload) {
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const sig = createHmac("sha256", cookieSecretMaterial()).update(`state:${body}`).digest("base64url");
+  return `v1.${body}.${sig}`;
+}
+
+function verifySignedState(token) {
+  if (typeof token !== "string" || !token.startsWith("v1.")) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [, body, sig] = parts;
+  const expected = createHmac("sha256", cookieSecretMaterial()).update(`state:${body}`).digest();
+  let provided;
+  try {
+    provided = Buffer.from(sig, "base64url");
+  } catch {
+    return null;
+  }
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (!parsed || typeof parsed !== "object" || !parsed.sessionId || !parsed.createdAt) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function sealLinkCookie(payload) {
+  const key = cookieSecretMaterial();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(payload), "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, ciphertext]).toString("base64url");
+}
+
+function unsealLinkCookie(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  try {
+    const buf = Buffer.from(raw, "base64url");
+    if (buf.length < 29) return null;
+    const iv = buf.subarray(0, 12);
+    const tag = buf.subarray(12, 28);
+    const ciphertext = buf.subarray(28);
+    const decipher = createDecipheriv("aes-256-gcm", cookieSecretMaterial(), iv);
+    decipher.setAuthTag(tag);
+    const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+    const parsed = JSON.parse(plain);
+    if (!parsed?.token || !parsed?.sessionId) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function parseCookieValue(req, name) {
+  const header = req.headers.get("cookie") || "";
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx === -1) continue;
+    const k = part.slice(0, idx).trim();
+    if (k === name) return part.slice(idx + 1).trim();
+  }
+  return null;
+}
+
+function isHttpsRequest(req) {
+  const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim().toLowerCase();
+  if (proto === "https") return true;
+  try {
+    return new URL(req.url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function buildLinkCookieHeader(req, payload) {
+  const value = sealLinkCookie(payload);
+  const attrs = [`${COOKIE_NAME}=${value}`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=86400"];
+  if (isHttpsRequest(req)) attrs.push("Secure");
+  return attrs.join("; ");
+}
+
+function buildClearCookieHeader(req) {
+  const attrs = [`${COOKIE_NAME}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
+  if (isHttpsRequest(req)) attrs.push("Secure");
+  return attrs.join("; ");
+}
+
+function withCookie(response, cookieHeader) {
+  if (!cookieHeader) return response;
+  const headers = new Headers(response.headers);
+  headers.append("set-cookie", cookieHeader);
+  return new Response(response.body, { status: response.status, headers });
+}
 
 const API = "https://api.netlify.com/api/v1";
 const TOKEN_URL = "https://api.netlify.com/oauth/token";
@@ -76,7 +186,7 @@ function pruneStore(now = Date.now()) {
 async function loadStore() {
   let info = null;
   try {
-    info = await stat(STORE_PATH);
+    info = await stat(activeStorePath);
   } catch {
     info = null;
   }
@@ -89,7 +199,7 @@ async function loadStore() {
     return store;
   }
   try {
-    store = normalizeStore(JSON.parse(await readFile(STORE_PATH, "utf8")));
+    store = normalizeStore(JSON.parse(await readFile(activeStorePath, "utf8")));
   } catch {
     store = emptyStore();
   }
@@ -99,17 +209,32 @@ async function loadStore() {
   return store;
 }
 
-async function saveStore() {
-  pruneStore();
-  await mkdir(path.dirname(STORE_PATH), { recursive: true });
-  const tmp = `${STORE_PATH}.${process.pid}.${crypto.randomUUID()}.tmp`;
+async function writeStoreTo(targetPath) {
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  const tmp = `${targetPath}.${process.pid}.${crypto.randomUUID()}.tmp`;
   await writeFile(tmp, JSON.stringify(store), { encoding: "utf8", mode: 0o600 });
-  await rename(tmp, STORE_PATH);
-  await chmod(STORE_PATH, 0o600);
+  await rename(tmp, targetPath);
+  await chmod(targetPath, 0o600);
   try {
-    storeStamp = fileStamp(await stat(STORE_PATH));
+    storeStamp = fileStamp(await stat(targetPath));
   } catch {
     storeStamp = null;
+  }
+}
+
+async function saveStore() {
+  pruneStore();
+  try {
+    await writeStoreTo(activeStorePath);
+  } catch (err) {
+    if ((err?.code === "EROFS" || err?.code === "EACCES" || err?.code === "EPERM") && activeStorePath !== TMP_STORE_PATH) {
+      activeStorePath = TMP_STORE_PATH;
+      try {
+        await writeStoreTo(activeStorePath);
+      } catch {
+        /* serverless read-only fallback: rely on encrypted HttpOnly cookie */
+      }
+    }
   }
   storeReady = true;
 }
@@ -238,7 +363,7 @@ async function refreshSites(sessionId, force = false) {
 function loadStoreSync() {
   let info = null;
   try {
-    info = statSync(STORE_PATH);
+    info = statSync(activeStorePath);
   } catch {
     info = null;
   }
@@ -251,7 +376,7 @@ function loadStoreSync() {
     return store;
   }
   try {
-    store = normalizeStore(JSON.parse(readFileSync(STORE_PATH, "utf8")));
+    store = normalizeStore(JSON.parse(readFileSync(activeStorePath, "utf8")));
   } catch {
     store = emptyStore();
   }
@@ -259,6 +384,24 @@ function loadStoreSync() {
   storeStamp = stamp;
   storeReady = true;
   return store;
+}
+
+export async function ensureAccountLoaded(req, sessionId) {
+  await loadStore();
+  if (store.links[sessionId]?.token) return store.links[sessionId];
+  const raw = parseCookieValue(req, COOKIE_NAME);
+  if (!raw) return null;
+  const sealed = unsealLinkCookie(raw);
+  if (!sealed?.token) return null;
+  if (sealed.sessionId && sessionId !== "anon" && sealed.sessionId !== sessionId) return null;
+  try {
+    const link = await hydrate(sealed.token, sealed.method || "oauth");
+    store.links[sessionId] = link;
+    await saveStore();
+    return link;
+  } catch {
+    return null;
+  }
 }
 
 export function accountContextText(sessionId) {
@@ -287,6 +430,7 @@ export async function handleNetlifyAccount(req) {
   const sessionId = getSessionId(req);
 
   if (pathname === "/api/netlify/status" && req.method === "GET") {
+    await ensureAccountLoaded(req, sessionId);
     await refreshSites(sessionId);
     return json({
       ok: true,
@@ -299,10 +443,11 @@ export async function handleNetlifyAccount(req) {
 
   if (pathname === "/api/netlify/disconnect" && req.method === "POST") {
     delete store.links[sessionId]; await saveStore();
-    return json({ ok: true, linked: false });
+    return withCookie(json({ ok: true, linked: false }), buildClearCookieHeader(req));
   }
 
   if (pathname === "/api/netlify/sites" && req.method === "GET") {
+    await ensureAccountLoaded(req, sessionId);
     const link = await refreshSites(sessionId, url.searchParams.get("refresh") === "1");
     if (!link) return json({ ok: false, error: "No Netlify account is linked in this session.", linked: false }, 401);
     return json({ ok: true, ...publicLink(link) });
@@ -359,7 +504,10 @@ export async function handleNetlifyAccount(req) {
     store.links[sessionId] = link;
     delete store.tickets[ticketId];
     await saveStore();
-    return json({ ok: true, status: "authorized", ...publicLink(link) });
+    return withCookie(
+      json({ ok: true, status: "authorized", ...publicLink(link) }),
+      buildLinkCookieHeader(req, { token: accessToken, method: "cli-ticket", sessionId }),
+    );
   }
 
   if (pathname === "/api/netlify/token" && req.method === "POST") {
@@ -372,7 +520,10 @@ export async function handleNetlifyAccount(req) {
     try {
       const link = await hydrate(token, "personal-token");
       store.links[sessionId] = link; await saveStore();
-      return json({ ok: true, ...publicLink(link) });
+      return withCookie(
+        json({ ok: true, ...publicLink(link) }),
+        buildLinkCookieHeader(req, { token, method: "personal-token", sessionId }),
+      );
     } catch (err) {
       return json({ error: "Netlify rejected that token. Create a personal access token at app.netlify.com → User settings → Applications." }, 401);
     }
@@ -389,8 +540,9 @@ export async function handleNetlifyAccount(req) {
     }
     if (sessionId === "anon") return json({ error: "A Cove session is required." }, 400);
     const redirectUri = redirectUriFrom(req);
-    const state = `${sessionId}.${crypto.randomUUID().replaceAll("-", "")}`;
-    store.oauthStates[state] = { sessionId, redirectUri, createdAt: Date.now() }; await saveStore();
+    const createdAt = Date.now();
+    const state = signState({ sessionId, redirectUri, createdAt, nonce: crypto.randomUUID().replaceAll("-", "") });
+    store.oauthStates[state] = { sessionId, redirectUri, createdAt }; await saveStore();
     const authorizeUrl = `${AUTHORIZE}?${new URLSearchParams({
       response_type: "code",
       client_id: process.env.NETLIFY_OAUTH_CLIENT_ID,
@@ -402,7 +554,7 @@ export async function handleNetlifyAccount(req) {
 
   if (pathname === "/api/netlify/oauth/callback" && req.method === "GET") {
     const state = url.searchParams.get("state") || "";
-    const meta = store.oauthStates[state];
+    const meta = store.oauthStates[state] || verifySignedState(state);
     const effectiveRedirectUri = meta?.redirectUri || redirectUriFrom(req);
     const origin = new URL(effectiveRedirectUri).origin;
     const fail = (reason) => {
@@ -412,7 +564,7 @@ export async function handleNetlifyAccount(req) {
       return new Response(null, { status: 302, headers: { location: target.toString(), "cache-control": "no-store" } });
     };
     if (!oauthConfigured()) return fail("oauth-not-configured");
-    if (meta) {
+    if (store.oauthStates[state]) {
       delete store.oauthStates[state];
       await saveStore();
     }
@@ -430,9 +582,10 @@ export async function handleNetlifyAccount(req) {
       client_secret: process.env.NETLIFY_OAUTH_CLIENT_SECRET,
       redirect_uri: effectiveRedirectUri,
     });
+    let accessToken = "";
     try {
       const tokenResponse = await netlifyFetch(TOKEN_URL, { method: "POST", form });
-      const accessToken = tokenResponse?.access_token;
+      accessToken = tokenResponse?.access_token || "";
       if (!accessToken) return fail("no-token");
       const link = await hydrate(accessToken, "oauth");
       store.links[meta.sessionId] = link; await saveStore();
@@ -441,7 +594,14 @@ export async function handleNetlifyAccount(req) {
     }
     const target = new URL("/", origin);
     target.searchParams.set("account", "linked");
-    return new Response(null, { status: 302, headers: { location: target.toString(), "cache-control": "no-store" } });
+    return new Response(null, {
+      status: 302,
+      headers: {
+        location: target.toString(),
+        "cache-control": "no-store",
+        "set-cookie": buildLinkCookieHeader(req, { token: accessToken, method: "oauth", sessionId: meta.sessionId }),
+      },
+    });
   }
 
   return json({ error: "Not found" }, 404);

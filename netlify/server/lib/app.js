@@ -6,7 +6,7 @@ import { buildPrompt } from "./prompt.js";
 import { runResearch } from "./research.js";
 import { getCliVersion } from "./cli-test.js";
 import { keywordAnalyze, analyzePrompt, parseAnalyzeReply } from "./tags.js";
-import { handleNetlifyAccount, accountContextText } from "./netlify-account.js";
+import { handleNetlifyAccount, accountContextText, ensureAccountLoaded } from "./netlify-account.js";
 import { detectLocalClis } from "./local-clis.js";
 import {
   inspectLocalAccess,
@@ -134,6 +134,7 @@ async function prepareChat(req) {
     throw error;
   }
   const knowledge = await buildPromptKnowledge();
+  await ensureAccountLoaded(req, sessionId);
   const systemPrompt = buildPrompt({
     knowledge: knowledge.text,
     messages,

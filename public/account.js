@@ -114,7 +114,7 @@
 
   function render(data, extra = "") {
     latest = data;
-    if (data && (!data.redirectUri || /localhost|127\.0\.0\.1/.test(data.redirectUri)) && window.location.origin.includes("netlify.live")) {
+    if (data && (!data.redirectUri || /localhost|127\.0\.0\.1/.test(data.redirectUri)) && window.location.origin && !/localhost|127\.0\.0\.1/.test(window.location.origin)) {
       data = { ...data, redirectUri: `${window.location.origin}/api/netlify/oauth/callback` };
     }
     if (els.status) els.status.textContent = statusLabel(data);
