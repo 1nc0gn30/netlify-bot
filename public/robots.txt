@@ -22,4 +22,4 @@ User-agent: Applebot
 Allow: /
 Crawl-delay: 0
 
-Sitemap: https://netlify-bot.nullai.tech/sitemap.xml
+Sitemap: https://cove-netlify-bot.netlify.app/sitemap.xml
