@@ -5,6 +5,7 @@ import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import { ProviderError } from "./provider-error.js";
 import { LIMITS } from "./guards.js";
+import { authorizeTool, leaseEnv, probeBridge, releaseLease } from "./signal-bridge.js";
 
 function resolveAgy() {
   if (process.env.AGY_PATH && existsSync(process.env.AGY_PATH)) return process.env.AGY_PATH;
@@ -72,7 +73,17 @@ export class AgyProvider {
     if (bin !== "agy" && !existsSync(bin)) {
       return { ok: false, reason: "agy was not found on this machine." };
     }
-    return { ok: true, bin };
+    const bridge = await probeBridge();
+    return {
+      ok: true,
+      bin,
+      bridge: {
+        ok: !!bridge.ok,
+        url: bridge.url,
+        transport: bridge.ok ? "signal-bridge" : "direct-cli-fallback",
+        reason: bridge.ok ? null : bridge.reason || null,
+      },
+    };
   }
 
   async *stream({ systemPrompt, signal, timeoutMs }) {
@@ -100,7 +111,7 @@ export class AgyProvider {
     if (process.env.COVE_AGY_MODEL) args.push("--model", process.env.COVE_AGY_MODEL);
     if (process.env.COVE_AGY_EFFORT) args.push("--effort", process.env.COVE_AGY_EFFORT);
 
-    const env = {
+    const baseEnv = {
       PATH: process.env.PATH,
       HOME: process.env.HOME,
       USER: process.env.USER,
@@ -109,10 +120,42 @@ export class AgyProvider {
       NO_COLOR: "1",
     };
 
+    const auth = await authorizeTool({
+      tool: "agy",
+      pid: process.pid,
+      workspace: cwd,
+      argsText: "--print --sandbox --disable-slash-commands --output-format stream-json",
+      signal,
+    });
+    let viaBridge = false;
+    if (auth.authorized && auth.leaseId) {
+      viaBridge = true;
+    } else if (!auth.unreachable) {
+      await rm(cwd, { recursive: true, force: true });
+      throw new ProviderError(auth.reason || "Sovereign Agent Bridge denied the agy lease.");
+    }
+    const env = viaBridge ? { ...leaseEnv(auth, baseEnv) } : { ...baseEnv };
+    // leaseEnv copies process.env; keep the chat process on the tight allowlist.
+    const spawnEnv = {
+      PATH: env.PATH || baseEnv.PATH,
+      HOME: env.HOME || baseEnv.HOME,
+      USER: env.USER || baseEnv.USER,
+      LANG: env.LANG || baseEnv.LANG,
+      TERM: "dumb",
+      NO_COLOR: "1",
+    };
+    if (viaBridge) {
+      spawnEnv.ZOTH_BRIDGE_AUTHORIZED = env.ZOTH_BRIDGE_AUTHORIZED;
+      spawnEnv.ZOTH_BRIDGE_LEASE_ID = env.ZOTH_BRIDGE_LEASE_ID;
+      spawnEnv.ZOTH_BRIDGE_URL = env.ZOTH_BRIDGE_URL;
+      if (env.ZOTH_BRIDGE_SYNC_MD) spawnEnv.ZOTH_BRIDGE_SYNC_MD = env.ZOTH_BRIDGE_SYNC_MD;
+    }
+
     let child;
     try {
-      child = spawn(bin, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+      child = spawn(bin, args, { cwd, env: spawnEnv, stdio: ["ignore", "pipe", "pipe"] });
     } catch (err) {
+      if (viaBridge) await releaseLease({ leaseId: auth.leaseId, exitCode: 1, signal });
       await rm(cwd, { recursive: true, force: true });
       throw new ProviderError(`Could not start agy: ${err.message}`);
     }
@@ -212,7 +255,11 @@ export class AgyProvider {
       }
     } finally {
       clearTimeout(timeout);
-      if (child.exitCode == null && !child.killed) child.kill("SIGTERM");
+      if (child && child.exitCode == null && !child.killed) child.kill("SIGTERM");
+      if (viaBridge) {
+        const exitCode = child && Number.isInteger(child.exitCode) ? child.exitCode : 0;
+        await releaseLease({ leaseId: auth.leaseId, exitCode, signal }).catch(() => {});
+      }
       setTimeout(() => rm(cwd, { recursive: true, force: true }).catch(() => {}), 2000);
     }
   }

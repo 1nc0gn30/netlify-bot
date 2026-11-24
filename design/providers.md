@@ -29,3 +29,9 @@ These were **present but not offered**, because they are wrappers, not a confirm
 ## Environment
 
 Cloud models can be overridden with `COVE_OPENROUTER_MODEL`, `COVE_OPENAI_MODEL`, `COVE_ANTHROPIC_MODEL`, `COVE_GEMINI_MODEL`, and `COVE_XAI_MODEL`. The default provider is `agy`, or `COVE_PROVIDER`. No cloud API keys belong in the environment for this design — users paste them in the browser, or complete OpenRouter OAuth.
+
+## Sovereign Agent Signal Bridge
+
+On a ZothOS machine, Cove prefers to run `agy` through the Sovereign Agent Signal Bridge at `http://127.0.0.1:8102`. The flow is `POST /api/agents/authorize` → spawn `agy --print --sandbox` with the lease in the environment → `POST /api/agents/release`. Safety limits are unchanged: rate limit, input cap, concurrency 2, throwaway cwd, argv spawn with no shell.
+
+If the bridge is down, Cove uses the direct CLI path. If the bridge is up and the gatekeeper denies the lease, Cove returns that error instead of bypassing policy. The Signal Messenger dispatcher (`zoth-signal-bridge` on `127.0.0.1:8768`) is a separate phone relay and is not used for Cove chat.

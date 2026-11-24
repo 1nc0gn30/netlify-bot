@@ -9,6 +9,7 @@ export { ProviderError } from "./provider-error.js";
 import { AgyProvider } from "./agy.js";
 import { detectLocalClis, createLocalCliProvider } from "./local-clis.js";
 import { CLOUD_CATALOG, createCloudProvider } from "./cloud-providers.js";
+import { probeBridge } from "./signal-bridge.js";
 
 export class EchoProvider {
   constructor() {
@@ -55,9 +56,16 @@ for (const id of ["agy", "hermes", "muse", "grok"]) {
 
 export async function providerCatalog() {
   const local = await detectLocalClis();
+  const bridge = await probeBridge();
   return {
     ok: true,
     defaultId: process.env.COVE_PROVIDER || "agy",
+    signalBridge: {
+      ok: !!bridge.ok,
+      url: bridge.url,
+      transport: bridge.ok ? "signal-bridge" : "direct-cli-fallback",
+      reason: bridge.ok ? null : bridge.reason || null,
+    },
     local,
     cloud: CLOUD_CATALOG.map((entry) => ({
       id: entry.id,

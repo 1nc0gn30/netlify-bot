@@ -16,6 +16,8 @@ This is not a [Preview Server](https://docs.netlify.com/manage/preview-servers/o
 
 The default model provider calls the local `agy` CLI in non-interactive `--print` mode, in a temporary directory, with `--sandbox` and a timeout. User input is never passed to a shell.
 
+When the Zoth Sovereign Agent Signal Bridge is running at `http://127.0.0.1:8102` (or `ZOTH_BRIDGE_URL`), Cove requests an `agy` execution lease from `/api/agents/authorize` before spawning the CLI, then releases it when the reply finishes. If the bridge is unreachable, Cove falls back to the same direct `agy` spawn. If the bridge is up and denies the lease, Cove does not bypass it. `/api/status` and `/api/providers` report which path is in use. This is the local agent mesh bridge, not the Signal Messenger dispatcher on port 8768.
+
 **This only works while this laptop is running the dev session.** A production deploy on Netlify will not have `agy`. Swap in a hosted provider when you are ready to deploy (see below).
 
 ## Scripts
@@ -49,6 +51,7 @@ Providers live in `netlify/server/lib/providers.js`. Set `COVE_PROVIDER=agy` (de
 - `AGY_PATH` — path to the `agy` binary
 - `COVE_AGY_MODEL` — model id (`agy models` to list)
 - `COVE_AGY_EFFORT` — `low` / `medium` / `high` / …
+- `ZOTH_BRIDGE_URL` — Sovereign Agent Signal Bridge base URL (default `http://127.0.0.1:8102`)
 
 To add a hosted provider later, implement `available()` and `stream()`, then `registerProvider(...)`.
 
