@@ -1,22 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cove — Community Netlify Guide</title>
-    <meta name="description" content="Fan-made community helper for the Netlify CLI and platform. Not affiliated with Netlify." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cove — Interactive Community Netlify Bot &amp; Workbench</title>
+    <meta name="description" content="Interactive fan-made community bot and developer workbench for the Netlify CLI, netlify.toml, redirects, functions, Server, and previews. Not affiliated with Netlify." />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://cove-netlify-bot.netlify.app/" />
-    <meta property="og:title" content="Cove — Community Netlify Guide" />
-    <meta property="og:description" content="Fan-made community helper for the Netlify CLI, functions, Server, and previews. 100% free and open access." />
+    <meta property="og:title" content="Cove — Interactive Community Netlify Bot &amp; Workbench" />
+    <meta property="og:description" content="Interactive community helper for the Netlify CLI, netlify.toml linting, redirect simulation, functions, Server, and previews. 100% free and open access." />
     <meta property="og:url" content="https://cove-netlify-bot.netlify.app/" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://cove-netlify-bot.netlify.app/assets/cove-stone-idle.webp" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@1nc0gn30" />
     <meta name="twitter:creator" content="@1nc0gn30" />
-    <meta name="twitter:title" content="Cove — Community Netlify Guide" />
-    <meta name="twitter:description" content="Fan-made community helper for the Netlify CLI, functions, Server, and previews." />
+    <meta name="twitter:title" content="Cove — Interactive Community Netlify Bot &amp; Workbench" />
+    <meta name="twitter:description" content="Interactive community helper for the Netlify CLI, netlify.toml linting, redirect simulation, functions, Server, and previews." />
     <meta name="twitter:image" content="https://cove-netlify-bot.netlify.app/assets/cove-stone-idle.webp" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <script type="application/ld+json">
@@ -26,11 +26,11 @@
         {
           "@type": ["WebApplication", "SoftwareApplication"],
           "@id": "https://cove-netlify-bot.netlify.app/#app",
-          "name": "Cove — Community Netlify Guide",
+          "name": "Cove — Interactive Community Netlify Bot & Workbench",
           "url": "https://cove-netlify-bot.netlify.app/",
           "applicationCategory": "DeveloperApplication",
           "operatingSystem": "All",
-          "description": "Fan-made community helper for the Netlify CLI, functions, Server, and previews grounded in official documentation.",
+          "description": "Interactive fan-made community helper and browser workbench for the Netlify CLI, netlify.toml linting, redirect simulation, functions, Server, and previews grounded in official documentation.",
           "offers": {
             "@type": "Offer",
             "price": "0",
@@ -59,7 +59,7 @@
               "name": "Is Cove free and open access?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes. Cove is 100% free and open access with zero paywalls. Voluntary support is available via Buy Us a Coffee on Stripe or Solana tips."
+                "text": "Yes. Cove and its entire Netlify developer workbench are 100% free and open access with zero paywalls. Voluntary support is available via Buy Us a Coffee on Stripe or Solana tips."
               }
             },
             {
@@ -67,7 +67,15 @@
               "name": "Where is conversation history stored?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Conversations are saved locally in your browser storage with full JSON export support."
+                "text": "Conversations are saved locally in your browser storage with full Markdown and JSON export support."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Do the netlify.toml linter, redirect simulator, and CLI builder work offline in the browser?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. All workbench utilities run 100% client-side in your browser with instant validation and zero external server requirements."
               }
             }
           ]
@@ -77,25 +85,47 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter+Tight:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter+Tight:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="announce" role="note">
-      Fan-made community guide. Not an official Netlify product and not affiliated with Netlify.
+      <div class="announce-inner">
+        <span>Fan-made community Netlify bot &amp; workbench. Not an official Netlify product and not affiliated with Netlify.</span>
+        <span class="announce-kbd" aria-hidden="true">Tip: type <code>/</code> in chat or press <kbd>Ctrl</kbd>+<kbd>K</kbd></span>
+      </div>
     </div>
 
     <header class="nav">
       <a class="brand" href="./" aria-label="Cove home">
         <img class="brand-mark" src="./assets/mark.svg" width="32" height="32" alt="Cove community guide logo" />
         <span class="brand-name">Cove</span>
+        <span class="brand-badge">BOT v2</span>
       </a>
       <nav class="nav-links" aria-label="Primary">
+        <a href="#workbench">Workbench</a>
         <a href="/netlify-ai.md" id="open-guide">Guide</a>
-        <a href="https://docs.netlify.com/" rel="noopener">Docs</a>
-        <a href="https://netlify.ai" rel="noopener">netlify.ai</a>
+        <a href="https://docs.netlify.com/" rel="noopener noreferrer" target="_blank">Docs</a>
+        <a href="https://netlify.ai" rel="noopener noreferrer" target="_blank">netlify.ai</a>
       </nav>
       <div class="nav-actions">
+        <button type="button" class="icon-pill" id="toggle-sound" aria-pressed="false" title="Toggle bot sound effects">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M11 5L6 9H3v6h3l5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+            <path class="sound-wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          <span class="sr-only">Toggle bot sound effects</span>
+        </button>
+        <button type="button" class="icon-pill" id="toggle-theme" aria-pressed="false" title="Toggle light/dark theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+          </svg>
+          <span class="sr-only">Toggle theme</span>
+        </button>
         <button type="button" class="nav-text" id="open-account">Account</button>
         <button type="button" class="nav-text" id="open-conversations">Conversations</button>
         <button type="button" class="nav-text" id="share-guide">Share guide</button>
@@ -106,32 +136,233 @@
     <main class="page">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Community Netlify guide</p>
-          <h1>Ask about<br />the platform.</h1>
+          <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span>INTERACTIVE NETLIFY BOT · GROUNDED IN OFFICIAL DOCS</p>
+          <h1>Ship faster<br />with Cove.</h1>
           <p class="lede">
-            A community helper for the Netlify CLI, functions, Server, and previews.
-            Answers stay grounded in official docs. This is not an official Netlify product.
+            An interactive community bot for the Netlify CLI, functions, Server, redirects, and previews — paired with live in-browser config tools. Answers stay grounded in official docs.
           </p>
 
           <div class="tool-row">
             <button type="button" class="btn btn-primary" id="run-research">Research &amp; test</button>
             <button type="button" class="btn btn-muted" id="refresh-knowledge">Refresh sources</button>
+            <a class="btn btn-outline" href="#workbench">Open Workbench</a>
           </div>
 
-          <p class="status" id="status-card">
-            <span><span class="k">Provider</span> <span id="status-provider">checking…</span></span>
-            <span><span class="k">CLI</span> <span id="status-cli">checking…</span></span>
-            <span><span class="k">Knowledge</span> <span id="status-knowledge">checking…</span></span>
-            <span><span class="k">Account</span> <span id="status-account">not linked</span></span>
-          </p>
+          <div class="telemetry-grid" id="status-card" aria-label="Live bot telemetry">
+            <button type="button" class="telemetry-tile" id="tile-provider" title="Configure AI provider">
+              <span class="k"><span class="led is-cyan" aria-hidden="true"></span>Provider</span>
+              <span class="v" id="status-provider">checking…</span>
+            </button>
+            <div class="telemetry-tile">
+              <span class="k"><span class="led is-emerald" aria-hidden="true"></span>CLI</span>
+              <span class="v" id="status-cli">checking…</span>
+            </div>
+            <div class="telemetry-tile">
+              <span class="k"><span class="led is-cyan" aria-hidden="true"></span>Knowledge</span>
+              <span class="v" id="status-knowledge">checking…</span>
+            </div>
+            <button type="button" class="telemetry-tile" id="tile-account" title="Link Netlify account">
+              <span class="k"><span class="led is-amber" aria-hidden="true"></span>Account</span>
+              <span class="v" id="status-account">not linked</span>
+            </button>
+          </div>
+
           <p class="hint" id="job-hint" aria-live="polite">Cove stays current from netlify.ai and official docs, then only writes verified claims to the shareable guide.</p>
+
+          <div class="quick-commands" aria-label="Quick bot actions">
+            <span class="qc-label">QUICK LAUNCH</span>
+            <button type="button" class="qc-pill" data-open-tool="toml"><code>/toml</code> Config Builder</button>
+            <button type="button" class="qc-pill" data-open-tool="redirects"><code>/redirects</code> Rule Simulator</button>
+            <button type="button" class="qc-pill" data-open-tool="cli"><code>/cli</code> Command Forge</button>
+          </div>
         </div>
 
         <div class="hero-panel">
-          <div class="mascot" id="buoy" data-state="idle" data-mood="idle" role="img" aria-label="Cove mark: a cream stone with a cyan inlet">
-            <img class="panel-art mascot-idle" src="./assets/cove-stone-idle.webp" width="1024" height="1024" alt="Cove mascot idle stone" />
-            <img class="panel-art mascot-thinking" src="./assets/cove-stone-thinking.webp" width="1024" height="1024" alt="Cove mascot thinking stone" />
+          <div class="bot-hud-top">
+            <div class="bot-state-pill" id="bot-state-pill" aria-live="polite">
+              <span class="state-dot" aria-hidden="true"></span>
+              <span id="bot-state-label">ONLINE · IDLE</span>
+            </div>
+            <div class="bot-hud-controls">
+              <button type="button" class="hud-chip" id="bot-ping-btn" title="Ping Cove diagnostics">Ping</button>
+              <button type="button" class="hud-chip" id="bot-mood-cycle" title="Cycle Cove expression">Express</button>
+            </div>
+          </div>
+
+          <div class="bot-speech" id="bot-speech" aria-live="polite">
+            <span id="bot-speech-text">Ready to inspect configs, simulate redirects, or answer Netlify CLI questions. Click me for a tip.</span>
+          </div>
+
+          <div
+            class="mascot"
+            id="buoy"
+            data-state="idle"
+            data-mood="idle"
+            role="button"
+            tabindex="0"
+            aria-label="Cove interactive bot mascot. Click or press Enter to interact."
+          >
             <canvas class="mascot-fx" id="mascot-fx" aria-hidden="true"></canvas>
+
+            <!-- Articulated Ceramic + Cyan-Inlet Interactive Cove Bot -->
+            <svg class="cove-bot-svg" id="cove-bot-svg" viewBox="0 0 360 250" width="360" height="250" aria-hidden="true">
+              <defs>
+                <radialGradient id="chassisGrad" cx="34%" cy="24%" r="74%">
+                  <stop offset="0%" stop-color="#ffffff" />
+                  <stop offset="48%" stop-color="#f5f1ea" />
+                  <stop offset="86%" stop-color="#e3dcd2" />
+                  <stop offset="100%" stop-color="#cfc5b9" />
+                </radialGradient>
+                <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+                  <stop offset="50%" stop-color="#e7e0d6" stop-opacity="0.3" />
+                  <stop offset="100%" stop-color="#9e968c" stop-opacity="0.5" />
+                </linearGradient>
+                <linearGradient id="visorBg" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#071a20" />
+                  <stop offset="55%" stop-color="#0a252d" />
+                  <stop offset="100%" stop-color="#051419" />
+                </linearGradient>
+                <linearGradient id="visorCyanGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#5ff2ff" />
+                  <stop offset="55%" stop-color="#01d4e5" />
+                  <stop offset="100%" stop-color="#0097a7" />
+                </linearGradient>
+                <linearGradient id="visorGlass" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32" />
+                  <stop offset="45%" stop-color="#ffffff" stop-opacity="0.06" />
+                  <stop offset="100%" stop-color="#01d4e5" stop-opacity="0.08" />
+                </linearGradient>
+                <filter id="cyanBloom" x="-40%" y="-40%" width="180%" height="180%">
+                  <feGaussianBlur stdDeviation="4.5" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+                <filter id="softDrop" x="-20%" y="-20%" width="140%" height="150%">
+                  <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#131619" flood-opacity="0.18" />
+                </filter>
+                <clipPath id="visorClip">
+                  <path d="M 105 103 C 105 84, 122 76, 150 79 C 169 81, 191 81, 210 79 C 238 76, 255 84, 255 103 L 255 135 C 255 156, 236 168, 206 165 C 189 163, 171 163, 154 165 C 124 168, 105 156, 105 135 Z" />
+                </clipPath>
+              </defs>
+
+              <!-- Floating hover shadow -->
+              <ellipse class="bot-ground-shadow" cx="180" cy="224" rx="84" ry="13" fill="#131619" opacity="0.18" />
+
+              <!-- Main hovering bot assembly -->
+              <g class="bot-rig" id="bot-rig" filter="url(#softDrop)">
+                <!-- Telemetry Antenna Crest -->
+                <g class="bot-antenna" id="bot-antenna">
+                  <path d="M 180 55 L 180 28" stroke="#cfc6ba" stroke-width="5" stroke-linecap="round" />
+                  <path d="M 180 55 L 180 28" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.7" />
+                  <!-- Signal rings -->
+                  <circle class="antenna-ring ring-1" cx="180" cy="23" r="10" fill="none" stroke="#01d4e5" stroke-width="1.5" opacity="0" />
+                  <circle class="antenna-ring ring-2" cx="180" cy="23" r="16" fill="none" stroke="#01d4e5" stroke-width="1.2" opacity="0" />
+                  <!-- Glowing beacon orb -->
+                  <circle class="antenna-orb" cx="180" cy="23" r="7.5" fill="url(#visorCyanGlow)" filter="url(#cyanBloom)" />
+                  <circle cx="177.5" cy="20.5" r="2.2" fill="#ffffff" opacity="0.85" />
+                </g>
+
+                <!-- Side Ear Pods / Acoustic Sensors -->
+                <g class="bot-ears">
+                  <rect x="64" y="102" width="16" height="44" rx="8" fill="#e7e1d8" stroke="#cfc6ba" stroke-width="1.5" />
+                  <rect x="68" y="114" width="5" height="20" rx="2.5" fill="#01d4e5" class="ear-led" />
+                  <rect x="280" y="102" width="16" height="44" rx="8" fill="#e7e1d8" stroke="#cfc6ba" stroke-width="1.5" />
+                  <rect x="287" y="114" width="5" height="20" rx="2.5" fill="#01d4e5" class="ear-led" />
+                </g>
+
+                <!-- Sculpted Ceramic Stone Chassis -->
+                <path
+                  class="bot-chassis"
+                  d="M 180 52 C 238 52, 286 76, 286 126 C 286 174, 244 202, 180 202 C 116 202, 74 174, 74 126 C 74 76, 122 52, 180 52 Z"
+                  fill="url(#chassisGrad)"
+                  stroke="url(#rimGrad)"
+                  stroke-width="2"
+                />
+
+                <!-- Subtle machined ceramic seam & top specular highlight -->
+                <path d="M 116 68 C 145 58, 215 58, 244 68" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7" />
+                <path d="M 134 190 C 162 195, 198 195, 226 190" fill="none" stroke="#b9b0a3" stroke-width="1.5" stroke-linecap="round" opacity="0.6" />
+
+                <!-- Recessed Cyan Bezel around Visor (Cove Inlet Shape) -->
+                <path
+                  d="M 101 102 C 101 80, 120 71, 150 74 C 169 76, 191 76, 210 74 C 240 71, 259 80, 259 102 L 259 136 C 259 160, 238 173, 206 170 C 189 168, 171 168, 154 170 C 122 173, 101 160, 101 136 Z"
+                  fill="#0d2f38"
+                  stroke="#01d4e5"
+                  stroke-width="2.4"
+                  class="visor-bezel"
+                />
+
+                <!-- Inner Visor Screen -->
+                <g clip-path="url(#visorClip)">
+                  <rect x="100" y="70" width="160" height="106" fill="url(#visorBg)" />
+
+                  <!-- Subtle telemetry grid inside visor -->
+                  <g opacity="0.14" stroke="#01d4e5" stroke-width="0.6">
+                    <line x1="104" y1="96" x2="256" y2="96" />
+                    <line x1="104" y1="120" x2="256" y2="120" />
+                    <line x1="104" y1="144" x2="256" y2="144" />
+                    <line x1="140" y1="74" x2="140" y2="170" />
+                    <line x1="180" y1="74" x2="180" y2="170" />
+                    <line x1="220" y1="74" x2="220" y2="170" />
+                  </g>
+
+                  <!-- Scanning radar sweep (visible during thinking/listening) -->
+                  <rect class="visor-scan" x="100" y="72" width="160" height="14" fill="url(#visorCyanGlow)" opacity="0" />
+
+                  <!-- Expressive Cursor-Tracking Eyes -->
+                  <g class="bot-eyes" id="bot-eyes" filter="url(#cyanBloom)">
+                    <!-- Normal / Idle / Listening eyes -->
+                    <g class="eyes-normal">
+                      <rect class="eye eye-left" x="134" y="102" width="24" height="28" rx="12" fill="url(#visorCyanGlow)" />
+                      <circle class="eye-spark" cx="142" cy="110" r="3.5" fill="#ffffff" opacity="0.9" />
+                      <rect class="eye eye-right" x="202" y="102" width="24" height="28" rx="12" fill="url(#visorCyanGlow)" />
+                      <circle class="eye-spark" cx="210" cy="110" r="3.5" fill="#ffffff" opacity="0.9" />
+                    </g>
+
+                    <!-- Happy / Success / Excited crescent eyes -->
+                    <g class="eyes-happy" opacity="0">
+                      <path d="M 131 120 Q 146 102 161 120" fill="none" stroke="#5ff2ff" stroke-width="5.5" stroke-linecap="round" />
+                      <path d="M 199 120 Q 214 102 229 120" fill="none" stroke="#5ff2ff" stroke-width="5.5" stroke-linecap="round" />
+                    </g>
+
+                    <!-- Code mode visor glyphs -->
+                    <g class="eyes-code" opacity="0">
+                      <text x="180" y="124" text-anchor="middle" fill="#5ff2ff" font-family="IBM Plex Mono, monospace" font-size="24" font-weight="600">&lt;/&gt;</text>
+                    </g>
+
+                    <!-- Error / Alert eyes -->
+                    <g class="eyes-error" opacity="0">
+                      <path d="M 136 106 L 154 124 M 154 106 L 136 124" stroke="#ff8f55" stroke-width="4.5" stroke-linecap="round" />
+                      <path d="M 206 106 L 224 124 M 224 106 L 206 124" stroke="#ff8f55" stroke-width="4.5" stroke-linecap="round" />
+                    </g>
+                  </g>
+
+                  <!-- Live Voice / Signal Waveform Bars -->
+                  <g class="bot-wave" id="bot-wave" fill="#01d4e5">
+                    <rect class="wave-bar" x="148" y="143" width="5" height="6" rx="2.5" />
+                    <rect class="wave-bar" x="158" y="141" width="5" height="10" rx="2.5" />
+                    <rect class="wave-bar" x="168" y="139" width="5" height="14" rx="2.5" />
+                    <rect class="wave-bar" x="178" y="140" width="5" height="12" rx="2.5" />
+                    <rect class="wave-bar" x="188" y="139" width="5" height="14" rx="2.5" />
+                    <rect class="wave-bar" x="198" y="141" width="5" height="10" rx="2.5" />
+                    <rect class="wave-bar" x="208" y="143" width="5" height="6" rx="2.5" />
+                  </g>
+
+                  <!-- Curved Glass Specular Reflection -->
+                  <path d="M 110 82 C 145 76, 215 76, 250 82 L 250 106 C 210 96, 150 96, 110 106 Z" fill="url(#visorGlass)" />
+                </g>
+
+                <!-- Bottom Chest Micro-Telemetry LEDs -->
+                <g class="bot-chest-leds">
+                  <circle cx="164" cy="183" r="2.6" fill="#01d4e5" opacity="0.85" />
+                  <circle cx="180" cy="184" r="3" fill="#10ddc4" opacity="0.95" />
+                  <circle cx="196" cy="183" r="2.6" fill="#01d4e5" opacity="0.5" />
+                </g>
+              </g>
+            </svg>
             <span class="mascot-shadow" aria-hidden="true"></span>
           </div>
 
@@ -154,20 +385,198 @@
               <button type="button" data-q="What is Netlify Server, and how is it different from Netlify Functions?">Netlify Server vs Functions</button>
               <button type="button" data-q="How do I share a local site with netlify dev --live, and how is that different from Preview Servers?">Share a dev link</button>
               <button type="button" data-q="How do I add redirects in netlify.toml, and what should I watch out for?">Redirects in netlify.toml</button>
+              <button type="button" data-q="Show me a production-ready netlify.toml with SPA fallback, functions, and security headers.">Production netlify.toml</button>
             </div>
 
             <ol class="transcript" id="transcript" aria-live="polite" aria-relevant="additions"></ol>
 
-            <form class="composer" id="composer">
-              <label class="sr-only" for="prompt">Your question</label>
-              <textarea id="prompt" name="prompt" rows="1" maxlength="6000" placeholder="Ask about netlify dev, functions, Server, blobs, forms, or deploys…" required></textarea>
-              <button type="submit" class="send" id="send" aria-label="Send">
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
-            </form>
+            <div class="followup-row" id="followup-row" hidden aria-label="Suggested follow-ups"></div>
+
+            <div class="composer-wrap">
+              <div class="slash-menu" id="slash-menu" role="listbox" aria-label="Slash commands" hidden></div>
+              <form class="composer" id="composer">
+                <label class="sr-only" for="prompt">Your question</label>
+                <button type="button" class="composer-tool" id="slash-trigger" title="Open slash commands (/)">/</button>
+                <textarea id="prompt" name="prompt" rows="1" maxlength="6000" placeholder="Ask about Netlify CLI, Server, or type /…" required></textarea>
+                <button type="button" class="composer-tool" id="voice-btn" title="Voice input" hidden aria-label="Voice input">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                    <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2" />
+                    <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                </button>
+                <button type="button" class="send send-stop" id="stop-stream" hidden aria-label="Stop generating" title="Stop generating">
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                    <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+                  </svg>
+                </button>
+                <button type="submit" class="send" id="send" aria-label="Send">
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </form>
+            </div>
           </section>
+        </div>
+      </section>
+
+      <!-- Interactive In-Browser Netlify Bot Workbench -->
+      <section class="workbench" id="workbench" aria-labelledby="workbench-title">
+        <div class="workbench-head">
+          <div>
+            <p class="eyebrow">INTERACTIVE WORKBENCH · 100% IN-BROWSER</p>
+            <h2 id="workbench-title">Build, lint, and simulate before you deploy.</h2>
+          </div>
+          <div class="workbench-tabs" role="tablist" aria-label="Workbench tools">
+            <button type="button" class="wb-tab is-active" role="tab" data-wb-tab="toml" aria-selected="true">netlify.toml Studio</button>
+            <button type="button" class="wb-tab" role="tab" data-wb-tab="redirects" aria-selected="false">Redirect Simulator</button>
+            <button type="button" class="wb-tab" role="tab" data-wb-tab="cli" aria-selected="false">CLI Command Forge</button>
+          </div>
+        </div>
+
+        <!-- Panel 1: netlify.toml Studio & Linter -->
+        <div class="wb-panel" id="wb-panel-toml" role="tabpanel">
+          <div class="wb-grid">
+            <div class="wb-controls">
+              <div class="wb-preset-row">
+                <span class="wb-label">Presets</span>
+                <div class="wb-presets" id="toml-presets">
+                  <button type="button" class="chip-btn is-active" data-preset="spa">Static / SPA</button>
+                  <button type="button" class="chip-btn" data-preset="functions">Functions + Blobs</button>
+                  <button type="button" class="chip-btn" data-preset="edge">Edge + Security</button>
+                  <button type="button" class="chip-btn" data-preset="monorepo">Monorepo</button>
+                </div>
+              </div>
+
+              <div class="wb-fields">
+                <label class="wb-field">
+                  <span>Publish directory</span>
+                  <input type="text" id="toml-publish" value="dist" placeholder="dist or public" />
+                </label>
+                <label class="wb-field">
+                  <span>Build command</span>
+                  <input type="text" id="toml-command" value="npm run build" placeholder="npm run build" />
+                </label>
+                <label class="wb-field">
+                  <span>Node version</span>
+                  <input type="text" id="toml-node" value="22" placeholder="22" />
+                </label>
+                <label class="wb-field">
+                  <span>Functions directory</span>
+                  <input type="text" id="toml-functions" value="netlify/functions" placeholder="netlify/functions" />
+                </label>
+              </div>
+
+              <div class="wb-toggles">
+                <label class="wb-toggle">
+                  <input type="checkbox" id="toml-spa" checked />
+                  <span>SPA catch-all redirect (<code>/* → /index.html 200</code>)</span>
+                </label>
+                <label class="wb-toggle">
+                  <input type="checkbox" id="toml-headers" checked />
+                  <span>Security headers (<code>X-Frame-Options</code>, <code>nosniff</code>, <code>Referrer-Policy</code>)</span>
+                </label>
+                <label class="wb-toggle">
+                  <input type="checkbox" id="toml-cache" checked />
+                  <span>Immutable asset caching for <code>/assets/*</code></span>
+                </label>
+                <label class="wb-toggle">
+                  <input type="checkbox" id="toml-dev" />
+                  <span>Include <code>[dev]</code> local port block</span>
+                </label>
+              </div>
+
+              <div class="wb-lint-box" id="toml-lint" aria-live="polite"></div>
+            </div>
+
+            <div class="wb-output">
+              <div class="wb-code-head">
+                <span class="wb-code-title">netlify.toml</span>
+                <div class="wb-code-actions">
+                  <button type="button" class="btn-mini" id="toml-copy">Copy</button>
+                  <button type="button" class="btn-mini" id="toml-download">Download</button>
+                  <button type="button" class="btn-mini btn-mini-accent" id="toml-ask-cove">Ask Cove</button>
+                </div>
+              </div>
+              <textarea class="wb-code-editor" id="toml-output" spellcheck="false" aria-label="Generated netlify.toml configuration"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Redirect & Rewrite Simulator -->
+        <div class="wb-panel" id="wb-panel-redirects" role="tabpanel" hidden>
+          <div class="wb-grid">
+            <div class="wb-controls">
+              <label class="wb-field">
+                <span>Test request path</span>
+                <div class="wb-inline-input">
+                  <input type="text" id="redir-test-path" value="/api/users/42" placeholder="/api/users/42" />
+                  <button type="button" class="btn btn-primary btn-sm" id="redir-run">Simulate</button>
+                </div>
+              </label>
+
+              <div class="wb-sample-paths" id="redir-samples">
+                <button type="button" class="chip-btn" data-path="/api/users/42">/api/users/42</button>
+                <button type="button" class="chip-btn" data-path="/old-blog/hello">/old-blog/hello</button>
+                <button type="button" class="chip-btn" data-path="/docs/cli">/docs/cli</button>
+                <button type="button" class="chip-btn" data-path="/dashboard/settings">/dashboard/settings</button>
+              </div>
+
+              <label class="wb-field">
+                <span><code>_redirects</code> rules (evaluated top-to-bottom)</span>
+                <textarea class="wb-rules-input" id="redir-rules" rows="7" spellcheck="false"># Proxy API traffic to Netlify Functions
+/api/*  /.netlify/functions/:splat  200
+# Permanent redirect for legacy blog
+/old-blog/*  /blog/:splat  301!
+# Redirect /docs/:topic to external docs
+/docs/:topic  https://docs.netlify.com/:topic  302
+# SPA fallback (keep last!)
+/*  /index.html  200</textarea>
+              </label>
+            </div>
+
+            <div class="wb-output">
+              <div class="wb-code-head">
+                <span class="wb-code-title">Simulation trace</span>
+                <div class="wb-code-actions">
+                  <button type="button" class="btn-mini btn-mini-accent" id="redir-ask-cove">Ask Cove</button>
+                </div>
+              </div>
+              <div class="wb-sim-result" id="redir-result" aria-live="polite"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 3: Netlify CLI Command Forge -->
+        <div class="wb-panel" id="wb-panel-cli" role="tabpanel" hidden>
+          <div class="wb-grid">
+            <div class="wb-controls">
+              <div class="wb-preset-row">
+                <span class="wb-label">Command</span>
+                <div class="wb-presets" id="cli-commands">
+                  <button type="button" class="chip-btn is-active" data-cmd="dev">netlify dev</button>
+                  <button type="button" class="chip-btn" data-cmd="deploy">netlify deploy</button>
+                  <button type="button" class="chip-btn" data-cmd="functions">netlify functions</button>
+                  <button type="button" class="chip-btn" data-cmd="env">netlify env</button>
+                  <button type="button" class="chip-btn" data-cmd="blobs">netlify blobs</button>
+                </div>
+              </div>
+
+              <div class="wb-toggles" id="cli-flags"></div>
+            </div>
+
+            <div class="wb-output">
+              <div class="wb-code-head">
+                <span class="wb-code-title">Ready-to-run command</span>
+                <div class="wb-code-actions">
+                  <button type="button" class="btn-mini" id="cli-copy">Copy</button>
+                  <button type="button" class="btn-mini btn-mini-accent" id="cli-ask-cove">Ask Cove</button>
+                </div>
+              </div>
+              <pre class="wb-cli-preview"><code id="cli-preview">netlify dev --port 8888</code></pre>
+              <div class="wb-cli-explain" id="cli-explain"></div>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -181,16 +590,16 @@
             <p class="foot-tag">Fan-made community guide. Not affiliated with Netlify. Engineered by Neal Frazier Tech (<a href="https://github.com/1nc0gn30/netlify-bot" rel="noopener noreferrer">@1nc0gn30</a>) • <a href="https://nullai.tech" rel="noopener noreferrer">NullAI Platform</a>.</p>
           </div>
         </div>
-        <p>
+        <p class="foot-links">
           Official sources:
-          <a href="https://netlify.ai" rel="noopener">netlify.ai</a>
+          <a href="https://netlify.ai" rel="noopener noreferrer" target="_blank">netlify.ai</a>
           and
-          <a href="https://docs.netlify.com/" rel="noopener">docs.netlify.com</a>.
+          <a href="https://docs.netlify.com/" rel="noopener noreferrer" target="_blank">docs.netlify.com</a>.
           Share the knowledge file at
           <a href="/netlify-ai.md">/netlify-ai.md</a>.
-          &nbsp;|&nbsp;
+          <span class="foot-sep" aria-hidden="true">·</span>
           <a href="https://buy.stripe.com/3cIfZg27PdKo2D64Ocfw40X" target="_blank" rel="noopener noreferrer">☕ Buy Us a Coffee</a>
-          &nbsp;|&nbsp;
+          <span class="foot-sep" aria-hidden="true">·</span>
           <a href="solana:GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK" title="Solana Tip Address: GG2eQbVh8ut1BK6j1A2tz7pSySdLpD38BgyEhGcxdXoK">◎ Solana Tip (GG2e…dXoK)</a>
         </p>
       </div>
@@ -237,6 +646,7 @@
     <script src="./mascot.js" defer></script>
     <script src="./account.js" defer></script>
     <script src="./providers.js" defer></script>
+    <script src="./workbench.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>
